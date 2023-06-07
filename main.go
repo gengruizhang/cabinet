@@ -1,32 +1,37 @@
 package main
 
 import (
+	"cabinet/smr"
+	"fmt"
 	"github.com/sirupsen/logrus"
-	"sync"
 )
 
 var log = logrus.New()
-var myPrio PriorityMgr
+var mypriority = smr.NewServerPriority(-1, 0)
+var mystate = smr.NewServerState()
+var pscheme []priority
 
 type serverID = int
 type prioClock = int
-
-// 1, 2, 3, 4, 5
-var priorities = struct {
-	sync.Mutex
-	m map[prioClock]map[serverID]int
-}{m: make(map[prioClock]map[serverID]int)}
+type priority = float64
 
 func init() {
-	myPrio = NewPrioMgr(1, 4)
 	loadCommandLineInputs()
-	prioThreshold = 8
-	leaderPrio = 5
 	setLogger(logLevel)
+
+	mystate.SetMyServerID(myServerID)
+	mystate.SetLeaderID(0)
+
+	pscheme, mypriority.Majority = initPriorities(numOfServers, faults, 1)
 }
 
 func main() {
+	fmt.Println("information board")
+	fmt.Printf("priority scheme: %v\n", pscheme)
+	fmt.Printf("majority: %v\n", mypriority.Majority)
+
 	if myServerID == 0 {
+		mypriority.PrioVal = pscheme[0] // leader has the highest priority
 		establishRPCs()
 		startSyncCabInstance()
 	} else {

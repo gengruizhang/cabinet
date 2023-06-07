@@ -3,15 +3,15 @@ package main
 import "flag"
 
 var numOfServers int
+var faults int
 var myServerID int
 var configPath string
 var production bool
-var prioThreshold int
-var leaderPrio int
 var logLevel string
 
 func loadCommandLineInputs() {
-	flag.IntVar(&numOfServers, "n", 2, "# of servers")
+	flag.IntVar(&numOfServers, "n", 5, "# of servers")
+	flag.IntVar(&faults, "f", 2, "# of faults tolerated")
 	flag.IntVar(&myServerID, "id", 0, "this server ID")
 	flag.StringVar(&configPath, "path", "./config/cluster_localhost.conf", "config file path")
 	flag.BoolVar(&production, "pd", false, "production mode?")

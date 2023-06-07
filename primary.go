@@ -3,10 +3,12 @@ package main
 import (
 	"cabinet/config"
 	"net/rpc"
+	"strconv"
 )
 
 func establishRPCs() {
 	serverConfig := config.Parser(numOfServers, configPath)
+	id := config.ServerID
 	ip := config.ServerIP
 	portOfRPCListener := config.ServerRPCListenerPort
 
@@ -15,13 +17,20 @@ func establishRPCs() {
 			continue
 		}
 
+		serverID, err := strconv.Atoi(serverConfig[i][id])
+		if err != nil {
+			log.Errorf("%v", err)
+			return
+		}
+
 		newServer := ServerDock{
+			serverID:   serverID,
 			addr:       serverConfig[i][ip] + ":" + serverConfig[i][portOfRPCListener],
 			txClient:   nil,
 			prioClient: nil,
 		}
 
-		log.Infof("i: %d | newServer.addr: %s", i, newServer.addr)
+		log.Infof("i: %d | newServer.addr: %v", i, newServer.addr)
 
 		txClient, err := rpc.Dial("tcp", newServer.addr)
 		if err != nil {
@@ -39,6 +48,8 @@ func establishRPCs() {
 		}
 
 		newServer.prioClient = prioClient
-		conns = append(conns, newServer)
+		conns.Lock()
+		conns.m[serverID] = newServer
+		conns.Unlock()
 	}
 }

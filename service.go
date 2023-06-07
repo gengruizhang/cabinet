@@ -1,9 +1,15 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 	"os/exec"
 	"time"
+)
+
+const (
+	PlainMsg = iota
+	TPCC
+	MongoDB
 )
 
 type CabService struct{}
@@ -14,56 +20,67 @@ func NewCabService() *CabService {
 
 type Args struct {
 	PrioClock int
-	Prio      int
+	PrioVal   float64
 	Cmd       []string
+	Type      int
 }
 
 type Reply struct {
-	Result  int
-	ExeTime string
-	PriorityMgr
+	ServerID  int
+	PrioClock int
+	Result    int
+	ExeTime   string
+	ErrorMsg  error
 }
 
-func (s *CabService) Add(args *Args, reply *Reply) error {
-	reply.Result = args.PrioClock + args.Prio
-	return nil
-}
-
-func (s *CabService) Subtract(args *Args, reply *Reply) error {
-	reply.Result = args.PrioClock - args.Prio
-	return nil
-}
-
-func (s *CabService) ExecuteScript(args *Args, reply *Reply) error {
-	cmd := exec.Command("sh", args.Cmd...)
-
-	start := time.Now()
-	err := cmd.Run()
-
-	reply.ExeTime = time.Now().Sub(start).String()
-
+func (s *CabService) ConsensusService(args *Args, reply *Reply) error {
+	// 1. First update priority
+	log.Infof("received args: %v", args)
+	err := mypriority.UpdatePriority(args.PrioClock, args.PrioVal)
 	if err != nil {
+		log.Errorf("update priority failed | err: %v", err)
+		reply.ErrorMsg = err
 		return err
 	}
 
-	return nil
-}
-
-func (s *CabService) ExecutePython(args *Args, reply *Reply) error {
-
-	cmd := exec.Command("python3", args.Cmd...)
-
-	fmt.Println("cmd: ", cmd.String())
-
-	start := time.Now()
-	err := cmd.Run()
-
-	reply.ExeTime = time.Now().Sub(start).String()
-	reply.Prio = myPrio.Prio
-
-	if err != nil {
-		return err
+	// 2. Then do transaction job
+	switch args.Type {
+	case PlainMsg:
+		return conJobPlainMsg(args, reply)
+	case TPCC:
+		return conJobTPCC(args, reply)
+	case MongoDB:
+		return conJobMongoDB(args, reply)
 	}
 
-	return nil
+	err = errors.New("unidentified job")
+	log.Errorf("err: %v | receievd type: %v", err, args.Type)
+	return err
+}
+
+func conJobPlainMsg(args *Args, reply *Reply) (err error) {
+	start := time.Now()
+
+	err = exec.Command("python3", args.Cmd...).Run()
+
+	if err != nil {
+		log.Errorf("run cmd failed | err: %v", err)
+		reply.ErrorMsg = err
+		return
+	}
+
+	reply.ExeTime = time.Now().Sub(start).String()
+	reply.ServerID = myServerID
+	reply.PrioClock = mypriority.PrioClock
+	return
+}
+
+func conJobTPCC(args *Args, reply *Reply) (err error) {
+	err = errors.New("waiting for implementation")
+	return
+}
+
+func conJobMongoDB(args *Args, reply *Reply) (err error) {
+	err = errors.New("waiting for implementation")
+	return
 }

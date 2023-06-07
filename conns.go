@@ -4,11 +4,19 @@ import (
 	"cabinet/config"
 	"net"
 	"net/rpc"
+	"sync"
 )
 
-var conns []ServerDock
+// conns does not store the operating server'mystate information
+var conns = struct {
+	sync.RWMutex
+	m map[int]ServerDock
+}{
+	m: make(map[int]ServerDock),
+}
 
 type ServerDock struct {
+	serverID   int
 	addr       string
 	txClient   *rpc.Client
 	prioClient *rpc.Client
@@ -22,8 +30,7 @@ func runFollower() {
 	myAddr := serverConfig[myServerID][ipIndex] + ":" + serverConfig[myServerID][rpcPortIndex]
 	log.Debugf("config: serverID %d | addr: %s", myServerID, myAddr)
 
-	arith := NewCabService()
-	err := rpc.Register(arith)
+	err := rpc.Register(NewCabService())
 	if err != nil {
 		log.Fatalf("rp.Reister failed | error: %v", err)
 		return

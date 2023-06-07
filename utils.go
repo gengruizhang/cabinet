@@ -17,16 +17,16 @@ func setLogger(level string) {
 	log.SetLevel(lvl)
 
 	if production {
-		e := os.RemoveAll(fmt.Sprintf("./logs/s%d", myServerID))
+		e := os.RemoveAll(fmt.Sprintf("./logs/mystate%d", myServerID))
 		if e != nil {
 			log.Fatal(e)
 		}
-		log.Infof(">> old logs removed at " + fmt.Sprintf("./logs/s%d", myServerID))
+		log.Infof(">> old logs removed at " + fmt.Sprintf("./logs/mystate%d", myServerID))
 
-		if err := os.Mkdir(fmt.Sprintf("./logs/s%d", myServerID), os.ModePerm); err != nil {
+		if err := os.Mkdir(fmt.Sprintf("./logs/mystate%d", myServerID), os.ModePerm); err != nil {
 			log.Error(err)
 		}
-		log.Infof(">> new log folder created at " + fmt.Sprintf("./logs/s%d", myServerID))
+		log.Infof(">> new log folder created at " + fmt.Sprintf("./logs/mystate%d", myServerID))
 
 		log.Formatter = &logrus.TextFormatter{
 			ForceColors:               false,
@@ -46,7 +46,7 @@ func setLogger(level string) {
 		}
 
 		log.Out = os.Stdout
-		fileName := fmt.Sprintf("./logs/s%d", myServerID)
+		fileName := fmt.Sprintf("./logs/mystate%d", myServerID)
 		file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 		if err != nil {
 			log.Info("Failed to log to file, using default stderr")

@@ -4,62 +4,81 @@ import (
 	"time"
 )
 
-var insCounter = 0
+var leaderPrioClock = 0
 
 func startSyncCabInstance() {
-	insCounter++
 	//pm := cabservice.NewPrioMgr(1, 1)
-	serviceMethod := "CabService.ExecutePython"
+	for {
 
-	args := &Args{
-		PrioClock: 10,
-		Prio:      20,
-		Cmd:       []string{"./cabservice/sum.py", "100_000_000"},
-	}
+		serviceMethod := "CabService.ConsensusService"
 
-	receiver := make(chan Reply, numOfServers)
+		receiver := make(chan Reply, numOfServers)
 
-	startTime := time.Now()
+		startTime := time.Now()
 
-	for k, _ := range conns {
-		go func(conn ServerDock, k int) {
-			reply := Reply{}
+		// 1. get priority
+		pManager.RLock()
+		fpriorities := pManager.m[leaderPrioClock]
+		pManager.RUnlock()
 
-			//if err := conn.prioClient.Call("CabService.Add", args, &reply); err == nil {
-			//	log.Infof("prioClient call succeeded | result: %v", reply)
-			//}
-			go func() {
-				err := conn.txClient.Call(serviceMethod, args, &reply)
-				if err != nil {
-					log.Errorf("RPC call error: %v", err)
-					return
-				}
-			}()
+		// 2. broadcast rpcs
 
-			go func() {
-				time.Sleep(2 * time.Second)
-				log.Infof("doing this ...")
-				err := conn.txClient.Call("CabService.Add", args, &reply)
+		conns.RLock()
+		for _, conn := range conns.m {
+			args := &Args{
+				PrioClock: leaderPrioClock,
+				PrioVal:   fpriorities[conn.serverID],
+				Type:      PlainMsg,
+				Cmd:       []string{"./cabservice/sum.py", "100_000_000"},
+			}
 
-				if err != nil {
-					log.Errorf("RPC call error: %v", err)
-					return
-				}
-				log.Infof("CabService.Add succeeded | result: %v", reply)
-			}()
-
-			log.Debugf("call succeeded | %v", conn.addr)
-			receiver <- reply
-		}(conns[k], k)
-	}
-
-	prioSum := leaderPrio
-	for reply := range receiver {
-		prioSum += reply.Prio
-		if prioSum > prioThreshold {
-			timeElapsed := time.Now().Sub(startTime)
-			log.Infof("consensus reached | insID: %v | time elapsed: %v", insCounter, timeElapsed.String())
-			return
+			go executeRPC(conn, serviceMethod, args, receiver)
 		}
+		conns.RUnlock()
+
+		// 3. waiting for results
+		prioSum := mypriority.PrioVal
+		prioQueue := make(chan serverID, numOfServers)
+
+		for reply := range receiver {
+
+			if reply.PrioClock < leaderPrioClock {
+				log.Debugf("stale pClock | remote pClock: %v | current pClock: %v", reply.PrioClock, leaderPrioClock)
+				continue
+			}
+
+			prioQueue <- reply.ServerID
+
+			pManager.RLock()
+			fpriorities := pManager.m[leaderPrioClock]
+			pManager.RUnlock()
+
+			prioSum += fpriorities[reply.ServerID]
+
+			if prioSum > mypriority.Majority {
+				timeElapsed := time.Now().Sub(startTime)
+				log.Infof("consensus reached | insID: %v | time elapsed: %v", leaderPrioClock, timeElapsed.String())
+				break
+			}
+		}
+
+		leaderPrioClock++
+		updateFollowerPriorities(leaderPrioClock, prioQueue)
+		log.Infof("prio updated for pClock %v", leaderPrioClock)
 	}
+}
+
+func executeRPC(conn ServerDock, serviceMethod string, args *Args, receiver chan Reply) {
+	reply := Reply{}
+
+	err := conn.txClient.Call(serviceMethod, args, &reply)
+
+	if err != nil {
+		log.Errorf("RPC call error: %v", err)
+		return
+	}
+
+	log.Infof("RPC %s succeeded | result: %v", serviceMethod, reply)
+
+	receiver <- reply
 }
