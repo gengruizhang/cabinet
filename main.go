@@ -36,5 +36,7 @@ func main() {
 		startSyncCabInstance()
 	} else {
 		runFollower()
+		// tpccDependency()
+		// mongoDependency()
 	}
 }

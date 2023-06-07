@@ -76,11 +76,15 @@ func conJobPlainMsg(args *Args, reply *Reply) (err error) {
 }
 
 func conJobTPCC(args *Args, reply *Reply) (err error) {
+
+	// do TPCC work
 	err = errors.New("waiting for implementation")
 	return
 }
 
 func conJobMongoDB(args *Args, reply *Reply) (err error) {
+
+	// do mongoDB work
 	err = errors.New("waiting for implementation")
 	return
 }
