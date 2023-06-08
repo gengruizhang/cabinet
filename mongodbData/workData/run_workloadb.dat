@@ -1,0 +1,47 @@
+***************** properties *****************
+"insertproportion"="0"
+"readproportion"="0.95"
+"scanproportion"="0"
+"readallfields"="true"
+"dotransactions"="true"
+"requestdistribution"="zipfian"
+"workload"="site.ycsb.workloads.CoreWorkload"
+"recordcount"="10"
+"updateproportion"="0.05"
+"db"="site.ycsb.BasicDB"
+"operationcount"="10"
+**********************************************
+READ usertable user1820151046732198393 [ <all fields>]
+READ usertable user1820151046732198393 [ <all fields>]
+READ usertable user7697331399106995587 [ <all fields>]
+READ usertable user6873002678636213555 [ <all fields>]
+READ usertable user6873002678636213555 [ <all fields>]
+READ usertable user8517097267634966620 [ <all fields>]
+READ usertable user7697331399106995587 [ <all fields>]
+READ usertable user6873002678636213555 [ <all fields>]
+READ usertable user8517097267634966620 [ <all fields>]
+READ usertable user7697331399106995587 [ <all fields>]
+[OVERALL], RunTime(ms), 11
+[OVERALL], Throughput(ops/sec), 909.0909090909091
+[TOTAL_GCS_G1_Young_Generation], Count, 0
+[TOTAL_GC_TIME_G1_Young_Generation], Time(ms), 0
+[TOTAL_GC_TIME_%_G1_Young_Generation], Time(%), 0.0
+[TOTAL_GCS_G1_Old_Generation], Count, 0
+[TOTAL_GC_TIME_G1_Old_Generation], Time(ms), 0
+[TOTAL_GC_TIME_%_G1_Old_Generation], Time(%), 0.0
+[TOTAL_GCs], Count, 0
+[TOTAL_GC_TIME], Time(ms), 0
+[TOTAL_GC_TIME_%], Time(%), 0.0
+[READ], Operations, 10
+[READ], AverageLatency(us), 58.0
+[READ], MinLatency(us), 24
+[READ], MaxLatency(us), 327
+[READ], 95thPercentileLatency(us), 327
+[READ], 99thPercentileLatency(us), 327
+[READ], Return=OK, 10
+[CLEANUP], Operations, 1
+[CLEANUP], AverageLatency(us), 1.0
+[CLEANUP], MinLatency(us), 1
+[CLEANUP], MaxLatency(us), 1
+[CLEANUP], 95thPercentileLatency(us), 1
+[CLEANUP], 99thPercentileLatency(us), 1

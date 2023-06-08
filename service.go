@@ -1,9 +1,13 @@
 package main
 
 import (
+	"encoding/gob"
 	"errors"
+	"fmt"
 	"os/exec"
 	"time"
+
+	"cabinet/mongodb"
 )
 
 const (
@@ -21,8 +25,9 @@ func NewCabService() *CabService {
 type Args struct {
 	PrioClock int
 	PrioVal   float64
-	Cmd       []string
-	Type      int
+	// Cmd       []string
+	Cmd  interface{}
+	Type int
 }
 
 type Reply struct {
@@ -35,7 +40,7 @@ type Reply struct {
 
 func (s *CabService) ConsensusService(args *Args, reply *Reply) error {
 	// 1. First update priority
-	log.Infof("received args: %v", args)
+	// log.Infof("received args: %v", args)
 	err := mypriority.UpdatePriority(args.PrioClock, args.PrioVal)
 	if err != nil {
 		log.Errorf("update priority failed | err: %v", err)
@@ -61,7 +66,7 @@ func (s *CabService) ConsensusService(args *Args, reply *Reply) error {
 func conJobPlainMsg(args *Args, reply *Reply) (err error) {
 	start := time.Now()
 
-	err = exec.Command("python3", args.Cmd...).Run()
+	err = exec.Command("python3", args.Cmd.([]string)...).Run()
 
 	if err != nil {
 		log.Errorf("run cmd failed | err: %v", err)
@@ -85,6 +90,40 @@ func conJobTPCC(args *Args, reply *Reply) (err error) {
 func conJobMongoDB(args *Args, reply *Reply) (err error) {
 
 	// do mongoDB work
-	err = errors.New("waiting for implementation")
+	// err = errors.New("waiting for implementation")
+
+	gob.Register([]mongodb.Query{})
+
+	start := time.Now()
+
+	queryResults, queryLatency, err := mongoDbFollower.FollowerAPI(args.Cmd.([]mongodb.Query))
+	if err != nil {
+		log.Errorf("run cmd failed | err: %v", err)
+		reply.ErrorMsg = err
+		return
+	}
+
+	reply.ExeTime = time.Since(start).String()
+	reply.ServerID = myServerID
+	reply.PrioClock = mypriority.PrioClock
+
+	// Print results...
+	fmt.Println("Average latency of Mongo DB queries: ", queryLatency)
+	for i, queryRes := range queryResults {
+		if i >= 2 && i < len(queryResults)-3 {
+			continue
+		}
+		fmt.Printf("\nResult of the %vth query: \n", i)
+		for _, queRes := range queryRes {
+			if uid, ok := queRes["_id"]; ok {
+				fmt.Println("_id", "is", uid)
+				delete(queRes, "_id")
+			}
+			for k, v := range queRes {
+				fmt.Println(k, "is", v)
+			}
+		}
+	}
+
 	return
 }

@@ -2,6 +2,8 @@ package main
 
 import (
 	"cabinet/config"
+	"cabinet/mongodb"
+	"encoding/gob"
 	"net"
 	"net/rpc"
 	"sync"
@@ -35,6 +37,34 @@ func runFollower() {
 		log.Fatalf("rp.Reister failed | error: %v", err)
 		return
 	}
+
+	// Mongo DB follower initialization
+	gob.Register([]mongodb.Query{})
+	queryTable := "usertable"
+
+	mongoDbFollower = mongodb.NewMongoFollower(clientNum, int(1))
+	queriesToLoad, err := mongodb.ReadQueryFromFile(mongodb.DataPath + "workload" + loadType + ".dat")
+	if err != nil {
+		log.Errorf("getting load data failed | error: %v", err)
+		return
+	}
+
+	if myServerID == 1 || !runLocal {
+		err = mongoDbFollower.ClearTable(queryTable)
+		if err != nil {
+			log.Errorf("clear table failed | error: %v", err)
+			return
+		}
+		log.Debugf("loading data to Mongo DB")
+		_, _, err = mongoDbFollower.FollowerAPI(queriesToLoad)
+		if err != nil {
+			log.Errorf("load data failed | error: %v", err)
+			return
+		}
+	}
+
+	log.Debugf("mongo DB initialization done")
+	// Mongo DB follower initialization done
 
 	listener, err := net.Listen("tcp", myAddr)
 	if err != nil {
