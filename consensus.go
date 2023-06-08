@@ -1,6 +1,8 @@
 package main
 
 import (
+	"cabinet/mongodb"
+	"encoding/gob"
 	"time"
 )
 
@@ -24,16 +26,37 @@ func startSyncCabInstance() {
 		// 2. broadcast rpcs
 
 		conns.RLock()
+
+		// mongoDB
+		gob.Register([]mongodb.Query{})
+		cmd, err := mongodb.ReadQueryFromFile(mongodb.DataPath + "run_workload" + loadType + ".dat")
+		if err != nil {
+			log.Errorf(err.Error())
+		}
+
 		for _, conn := range conns.m {
 			args := &Args{
 				PrioClock: leaderPrioClock,
 				PrioVal:   fpriorities[conn.serverID],
-				Type:      PlainMsg,
-				Cmd:       []string{"./cabservice/sum.py", "100_000_000"},
+				Type:      MongoDB,
+				Cmd:       cmd,
 			}
 
 			go executeRPC(conn, serviceMethod, args, receiver)
 		}
+
+		// plain msg
+		// for _, conn := range conns.m {
+		// 	args := &Args{
+		// 		PrioClock: leaderPrioClock,
+		// 		PrioVal:   fpriorities[conn.serverID],
+		// 		Type:      PlainMsg,
+		// 		Cmd:       []string{"./cabservice/sum.py", "100_000_000"},
+		// 	}
+
+		// 	go executeRPC(conn, serviceMethod, args, receiver)
+		// }
+
 		conns.RUnlock()
 
 		// 3. waiting for results
