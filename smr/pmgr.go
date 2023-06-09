@@ -89,10 +89,12 @@ func (pm *PriorityManager) UpdateFollowerPriorities(pClock int, prioQueue chan s
 		serverIDIndicator[i] = i
 	}
 
-	for i := 0; i < pm.f-1; i++ {
+	for i := 0; i < len(prioQueue); i++ {
 		s := <-prioQueue
+		// skip leader
 		newPriorities[s] = pm.scheme[i+1]
 
+		// Identify IDs that will be removed below
 		index := -1
 		for i, id := range serverIDIndicator {
 			if id == s {
@@ -108,7 +110,7 @@ func (pm *PriorityManager) UpdateFollowerPriorities(pClock int, prioQueue chan s
 
 	}
 
-	i := pm.f
+	i := len(prioQueue) + 1
 	for _, id := range serverIDIndicator {
 		newPriorities[id] = pm.scheme[i]
 		i++

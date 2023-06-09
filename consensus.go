@@ -8,6 +8,12 @@ import (
 func startSyncCabInstance() {
 	leaderPrioClock := 0
 	//pm := cabservice.NewPrioMgr(1, 1)
+	mongoDBAllQueries, err := mongodb.ReadQueryFromFile(mongodb.DataPath + "run_workload" + mongoLoadType + ".dat")
+	if err != nil {
+		log.Errorf("ReadQueryFromFile failed | err: %v", err)
+		return
+	}
+
 	for {
 
 		serviceMethod := "CabService.ConsensusService"
@@ -29,7 +35,14 @@ func startSyncCabInstance() {
 		case TPCC:
 
 		case MongoDB:
-			issueMongoDBOps(leaderPrioClock, fpriorities, serviceMethod, receiver)
+			left := leaderPrioClock * batchsize
+			right := (leaderPrioClock+1)*batchsize - 1
+			if right > len(mongoDBAllQueries) {
+				log.Infof("MongoDB evaluation finished")
+				break
+			}
+			mongoCmd := mongoDBAllQueries[left:right]
+			issueMongoDBOps(leaderPrioClock, fpriorities, serviceMethod, receiver, mongoCmd)
 		}
 
 		// 3. waiting for results
@@ -82,17 +95,12 @@ func issuePlainMsgOps(pClock prioClock, p map[serverID]priority, method string, 
 	}
 }
 
-func issueMongoDBOps(pClock prioClock, p map[serverID]priority, method string, r chan ReplyInfo) {
+func issueMongoDBOps(pClock prioClock, p map[serverID]priority, method string, r chan ReplyInfo, cmd []mongodb.Query) {
 	conns.RLock()
 	defer conns.RUnlock()
 
 	//gob.Register([]mongodb.Query{})
-	cmd, err := mongodb.ReadQueryFromFile(mongodb.DataPath + "run_workload" + mongoLoadType + ".dat")
-	if err != nil {
-		log.Errorf("ReadQueryFromFile failed | err: %v", err)
-		return
-	}
-
+	// cmd is all queries
 	for _, conn := range conns.m {
 		args := &Args{
 			PrioClock: pClock,

@@ -84,7 +84,7 @@ func initMongoDB() {
 		return
 	}
 
-	if myServerID == 1 && mode == Localhost {
+	if myServerID == 1 || mode == Distributed {
 		err = mongoDbFollower.ClearTable(queryTable)
 		if err != nil {
 			log.Errorf("clear table failed | error: %v", err)

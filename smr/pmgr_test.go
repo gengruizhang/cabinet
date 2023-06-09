@@ -23,6 +23,7 @@ func TestInit(t *testing.T) {
 		t.Errorf("oneLessCabPriority is greater than majority | oneLessCabPriority: %v, majority: %v", oneLessCabPriority, majority)
 		return
 	}
-	t.Logf("priority scheme: %+v", p)
-	t.Logf("cabPriority: %v, majority: %v, oneLessCabPriority: %v", cabPriority, majority, oneLessCabPriority)
+	t.Logf("priority scheme: %+v", p.scheme)
+	t.Logf("cabPriority: %v; they are: %+v", cabPriority, scheme[:f])
+	t.Logf("majority: %v, oneLessCabPriority: %v", majority, oneLessCabPriority)
 }
