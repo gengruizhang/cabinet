@@ -12,7 +12,7 @@ func startSyncCabInstance() {
 
 		serviceMethod := "CabService.ConsensusService"
 
-		receiver := make(chan Reply, numOfServers)
+		receiver := make(chan ReplyInfo, numOfServers)
 
 		startTime := time.Now()
 
@@ -36,23 +36,21 @@ func startSyncCabInstance() {
 		prioSum := mypriority.PrioVal
 		prioQueue := make(chan serverID, numOfServers)
 
-		for reply := range receiver {
+		for rinfo := range receiver {
 
-			if reply.PrioClock < leaderPrioClock {
-				log.Debugf("stale pClock | remote pClock: %v | current pClock: %v", reply.PrioClock, leaderPrioClock)
-				continue
-			}
-
-			prioQueue <- reply.ServerID
-			log.Infof("recv pClock: %v | serverID: %v", leaderPrioClock, reply.ServerID)
+			prioQueue <- rinfo.SID
+			log.Infof("recv pClock: %v | serverID: %v", leaderPrioClock, rinfo.SID)
 
 			fpriorities := pManager.GetFollowerPriorities(leaderPrioClock)
 
-			prioSum += fpriorities[reply.ServerID]
+			prioSum += fpriorities[rinfo.SID]
 
 			if prioSum > mypriority.Majority {
 				timeElapsed := time.Now().Sub(startTime)
-				log.Infof("consensus reached | insID: %v | time elapsed: %v", leaderPrioClock, timeElapsed.String())
+				mystate.AddCommitIndex(batchsize)
+
+				log.Infof("consensus reached | insID: %v | total time elapsed: %v | cmtIndex: %v",
+					leaderPrioClock, timeElapsed.String(), mystate.GetCommitIndex())
 				break
 			}
 		}
@@ -63,23 +61,28 @@ func startSyncCabInstance() {
 	}
 }
 
-func issuePlainMsgOps(pClock prioClock, p map[serverID]priority, method string, r chan Reply) {
+func issuePlainMsgOps(pClock prioClock, p map[serverID]priority, method string, r chan ReplyInfo) {
 	conns.RLock()
 	defer conns.RUnlock()
+
+	var plainMessage [][]byte
+	for i := 0; i < batchsize; i++ {
+		plainMessage = append(plainMessage, genRandomBytes(msgsize))
+	}
 
 	for _, conn := range conns.m {
 		args := &Args{
 			PrioClock: pClock,
 			PrioVal:   p[conn.serverID],
 			Type:      PlainMsg,
-			CmdPlain:  genRandomBytes(1024),
+			CmdPlain:  plainMessage,
 		}
 
 		go executeRPC(conn, method, args, r)
 	}
 }
 
-func issueMongoDBOps(pClock prioClock, p map[serverID]priority, method string, r chan Reply) {
+func issueMongoDBOps(pClock prioClock, p map[serverID]priority, method string, r chan ReplyInfo) {
 	conns.RLock()
 	defer conns.RUnlock()
 
@@ -107,7 +110,7 @@ func issueTPCCOps() {
 
 }
 
-func executeRPC(conn ServerDock, serviceMethod string, args *Args, receiver chan Reply) {
+func executeRPC(conn ServerDock, serviceMethod string, args *Args, receiver chan ReplyInfo) {
 	reply := Reply{}
 
 	err := conn.txClient.Call(serviceMethod, args, &reply)
@@ -117,7 +120,12 @@ func executeRPC(conn ServerDock, serviceMethod string, args *Args, receiver chan
 		return
 	}
 
-	log.Debugf("RPC %s succeeded | result: %v", serviceMethod, reply)
+	rinfo := ReplyInfo{
+		SID:    conn.serverID,
+		PClock: args.PrioClock,
+		Recv:   reply,
+	}
+	receiver <- rinfo
 
-	receiver <- reply
+	log.Debugf("RPC %s succeeded | result: %+v", serviceMethod, rinfo)
 }

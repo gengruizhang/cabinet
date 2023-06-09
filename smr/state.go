@@ -82,11 +82,15 @@ func (s *ServerState) SyncLogIndex(logIndex int) {
 }
 
 func (s *ServerState) GetLogIndex() (logIndex int) {
-	s.RLock()
-	defer s.RUnlock()
-
 	logIndex = s.logIndex
 	return
+}
+
+func (s *ServerState) AddLogIndex(n int) {
+	s.Lock()
+	defer s.Unlock()
+
+	s.logIndex += n
 }
 
 func (s *ServerState) SyncCommitIndex(commitIndex int) {
@@ -97,9 +101,13 @@ func (s *ServerState) SyncCommitIndex(commitIndex int) {
 }
 
 func (s *ServerState) GetCommitIndex() (commitIndex int) {
-	s.RLock()
-	defer s.RUnlock()
-
 	commitIndex = s.cmtIndex
 	return
+}
+
+func (s *ServerState) AddCommitIndex(n int) {
+	s.Lock()
+	defer s.Unlock()
+
+	s.cmtIndex += n
 }

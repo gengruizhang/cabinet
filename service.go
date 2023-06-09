@@ -17,19 +17,27 @@ func NewCabService() *CabService {
 type Args struct {
 	PrioClock int
 	PrioVal   float64
-	CmdPlain  []byte
+	CmdPlain  [][]byte
 	CmdMongo  []mongodb.Query
 	// CmdTPCC  []string
 	CmdPy []string
 	Type  int
 }
 
+type ReplyInfo struct {
+	SID    int
+	PClock int
+	Recv   Reply
+}
+
 type Reply struct {
-	ServerID  int
-	PrioClock int
-	Result    int
-	ExeTime   string
-	ErrorMsg  error
+	// ServerID and PrioClock are filled by leader
+	// ServerID  int
+	// PrioClock int
+
+	Result   int
+	ExeTime  string
+	ErrorMsg error
 }
 
 func (s *CabService) ConsensusService(args *Args, reply *Reply) error {
@@ -60,11 +68,13 @@ func (s *CabService) ConsensusService(args *Args, reply *Reply) error {
 func conJobPlainMsg(args *Args, reply *Reply) (err error) {
 	start := time.Now()
 
-	log.Infof("pClock: %v | msg: %x", args.PrioClock, args.CmdPlain)
+	for _, msg := range args.CmdPlain {
+		log.Infof("pClock: %v | msg: %x", args.PrioClock, msg)
+	}
 
 	reply.ExeTime = time.Now().Sub(start).String()
-	reply.ServerID = myServerID
-	reply.PrioClock = mypriority.PrioClock
+	//reply.ServerID = myServerID
+	//reply.PrioClock = mypriority.PrioClock
 
 	return nil
 }
@@ -81,14 +91,15 @@ func conJobPythonScript(args *Args, reply *Reply) (err error) {
 	}
 
 	reply.ExeTime = time.Now().Sub(start).String()
-	reply.ServerID = myServerID
-	reply.PrioClock = mypriority.PrioClock
+	//reply.ServerID = myServerID
+	//reply.PrioClock = mypriority.PrioClock
 	return
 }
 
 func conJobTPCC(args *Args, reply *Reply) (err error) {
 
 	// do TPCC work
+	// michalis ...
 	err = errors.New("waiting for implementation")
 	return
 }
@@ -110,8 +121,8 @@ func conJobMongoDB(args *Args, reply *Reply) (err error) {
 	}
 
 	reply.ExeTime = time.Since(start).String()
-	reply.ServerID = myServerID
-	reply.PrioClock = mypriority.PrioClock
+	//reply.ServerID = myServerID
+	//reply.PrioClock = mypriority.PrioClock
 
 	// Print results...
 	fmt.Println("Average latency of Mongo DB queries: ", queryLatency)
