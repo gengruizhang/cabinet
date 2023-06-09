@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"os"
@@ -63,4 +64,17 @@ func setLogger(level string) {
 			return "", fileName + " >>"
 		},
 	})
+}
+
+func genRandomBytes(length int) (randomBytes []byte) {
+
+	randomBytes = make([]byte, length)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		fmt.Println("Error generating random bytes:", err)
+		return
+	}
+
+	fmt.Printf("Random Bytes: %x\n", randomBytes)
+	return
 }

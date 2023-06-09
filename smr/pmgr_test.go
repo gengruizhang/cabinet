@@ -1,15 +1,18 @@
-package main
+package smr
 
 import (
 	"testing"
 )
 
-func TestInitPriorities(t *testing.T) {
+func TestInit(t *testing.T) {
 	n, f, b := 10, 3, 1
+	var p PriorityManager
+	p.Init(n, f, b)
 
-	p, majority := initPriorities(n, f, b)
-	cabPriority := sum(p[len(p)-f:])
-	oneLessCabPriority := sum(p[len(p)-(f-1):])
+	scheme := p.scheme
+	majority := p.majority
+	cabPriority := sum(scheme[:f])
+	oneLessCabPriority := sum(scheme[:f-1])
 
 	if cabPriority <= majority {
 		t.Errorf("cabPriority is less than majority | cabPriority: %v, majority: %v", cabPriority, majority)
@@ -20,6 +23,6 @@ func TestInitPriorities(t *testing.T) {
 		t.Errorf("oneLessCabPriority is greater than majority | oneLessCabPriority: %v, majority: %v", oneLessCabPriority, majority)
 		return
 	}
-	t.Logf("priority scheme: %v", p)
+	t.Logf("priority scheme: %+v", p)
 	t.Logf("cabPriority: %v, majority: %v, oneLessCabPriority: %v", cabPriority, majority, oneLessCabPriority)
 }

@@ -6,10 +6,13 @@ import (
 	"encoding/gob"
 	"net"
 	"net/rpc"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 )
 
-// conns does not store the operating server'mystate information
+// conns does not store the operating servers' information
 var conns = struct {
 	sync.RWMutex
 	m map[int]ServerDock
@@ -32,39 +35,21 @@ func runFollower() {
 	myAddr := serverConfig[myServerID][ipIndex] + ":" + serverConfig[myServerID][rpcPortIndex]
 	log.Debugf("config: serverID %d | addr: %s", myServerID, myAddr)
 
+	switch evalType {
+	case PlainMsg:
+		// nothing needs to be done
+	case TPCC:
+		initTPCC()
+	case MongoDB:
+		go mongoDBCleanUp()
+		initMongoDB()
+	}
+
 	err := rpc.Register(NewCabService())
 	if err != nil {
 		log.Fatalf("rp.Reister failed | error: %v", err)
 		return
 	}
-
-	// Mongo DB follower initialization
-	gob.Register([]mongodb.Query{})
-	queryTable := "usertable"
-
-	mongoDbFollower = mongodb.NewMongoFollower(clientNum, int(1))
-	queriesToLoad, err := mongodb.ReadQueryFromFile(mongodb.DataPath + "workload" + loadType + ".dat")
-	if err != nil {
-		log.Errorf("getting load data failed | error: %v", err)
-		return
-	}
-
-	if myServerID == 1 || !runLocal {
-		err = mongoDbFollower.ClearTable(queryTable)
-		if err != nil {
-			log.Errorf("clear table failed | error: %v", err)
-			return
-		}
-		log.Debugf("loading data to Mongo DB")
-		_, _, err = mongoDbFollower.FollowerAPI(queriesToLoad)
-		if err != nil {
-			log.Errorf("load data failed | error: %v", err)
-			return
-		}
-	}
-
-	log.Debugf("mongo DB initialization done")
-	// Mongo DB follower initialization done
 
 	listener, err := net.Listen("tcp", myAddr)
 	if err != nil {
@@ -81,4 +66,55 @@ func runFollower() {
 
 		go rpc.ServeConn(conn)
 	}
+}
+
+func initTPCC() {
+
+}
+
+func initMongoDB() {
+	// Mongo DB follower initialization
+	gob.Register([]mongodb.Query{})
+	queryTable := "usertable"
+
+	mongoDbFollower = mongodb.NewMongoFollower(mongoClientNum, int(1))
+	queriesToLoad, err := mongodb.ReadQueryFromFile(mongodb.DataPath + "workload" + mongoLoadType + ".dat")
+	if err != nil {
+		log.Errorf("getting load data failed | error: %v", err)
+		return
+	}
+
+	if myServerID == 1 && mode == Localhost {
+		err = mongoDbFollower.ClearTable(queryTable)
+		if err != nil {
+			log.Errorf("clear table failed | error: %v", err)
+			return
+		}
+		log.Debugf("loading data to Mongo DB")
+		_, _, err = mongoDbFollower.FollowerAPI(queriesToLoad)
+		if err != nil {
+			log.Errorf("load data failed | error: %v", err)
+			return
+		}
+	}
+
+	log.Debugf("mongo DB initialization done")
+	// Mongo DB follower initialization done
+}
+
+// mongoDBCleanUp cleans up client connections to DB upon ctrl+C
+func mongoDBCleanUp() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		log.Debugf("clean up MongoDb follower")
+		err := mongoDbFollower.CleanUp()
+		if err != nil {
+			log.Errorf("clean up MongoDB follower failed | err: %v", err)
+			return
+		}
+		log.Infof("clean up MongoDB follower succeeded")
+		os.Exit(1)
+	}()
 }

@@ -2,12 +2,29 @@ package main
 
 import "flag"
 
+const (
+	Localhost = iota
+	Distributed
+)
+
+const (
+	PlainMsg = iota
+	TPCC
+	MongoDB
+)
+
 var numOfServers int
 var faults int
 var myServerID int
 var configPath string
 var production bool
 var logLevel string
+var mode int
+var evalType int
+
+// Mongo DB input parameters
+var mongoLoadType string
+var mongoClientNum int
 
 func loadCommandLineInputs() {
 	flag.IntVar(&numOfServers, "n", 5, "# of servers")
@@ -16,6 +33,11 @@ func loadCommandLineInputs() {
 	flag.StringVar(&configPath, "path", "./config/cluster_localhost.conf", "config file path")
 	flag.BoolVar(&production, "pd", false, "production mode?")
 	flag.StringVar(&logLevel, "log", "debug", "trace, debug, info, warn, error, fatal, panic")
+	flag.IntVar(&mode, "mode", 0, "0 -> localhost; 1 -> distributed")
+	flag.IntVar(&evalType, "et", 0, "0 -> plain msg; 1 -> tpcc; 2 -> mongodb")
+	// MongoDB input parameters
+	flag.StringVar(&mongoLoadType, "mload", "a", "mongodb load type")
+	flag.IntVar(&mongoClientNum, "mcli", 16, "# of mongodb clients")
 	flag.Parse()
 
 	log.Infof("CommandLine parameters:\n - numOfServers:%v\n - myServerID:%v\n", numOfServers, myServerID)

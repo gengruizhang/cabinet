@@ -2,13 +2,11 @@ package main
 
 import (
 	"cabinet/mongodb"
-	"encoding/gob"
 	"time"
 )
 
-var leaderPrioClock = 0
-
 func startSyncCabInstance() {
+	leaderPrioClock := 0
 	//pm := cabservice.NewPrioMgr(1, 1)
 	for {
 
@@ -19,45 +17,20 @@ func startSyncCabInstance() {
 		startTime := time.Now()
 
 		// 1. get priority
-		pManager.RLock()
-		fpriorities := pManager.m[leaderPrioClock]
-		pManager.RUnlock()
+		fpriorities := pManager.GetFollowerPriorities(leaderPrioClock)
+		log.Infof("pClock: %v | priorities: %+v", leaderPrioClock, fpriorities)
 
 		// 2. broadcast rpcs
 
-		conns.RLock()
-
 		// mongoDB
-		gob.Register([]mongodb.Query{})
-		cmd, err := mongodb.ReadQueryFromFile(mongodb.DataPath + "run_workload" + loadType + ".dat")
-		if err != nil {
-			log.Errorf(err.Error())
+		switch evalType {
+		case PlainMsg:
+			issuePlainMsgOps(leaderPrioClock, fpriorities, serviceMethod, receiver)
+		case TPCC:
+
+		case MongoDB:
+			issueMongoDBOps(leaderPrioClock, fpriorities, serviceMethod, receiver)
 		}
-
-		for _, conn := range conns.m {
-			args := &Args{
-				PrioClock: leaderPrioClock,
-				PrioVal:   fpriorities[conn.serverID],
-				Type:      MongoDB,
-				Cmd:       cmd,
-			}
-
-			go executeRPC(conn, serviceMethod, args, receiver)
-		}
-
-		// plain msg
-		// for _, conn := range conns.m {
-		// 	args := &Args{
-		// 		PrioClock: leaderPrioClock,
-		// 		PrioVal:   fpriorities[conn.serverID],
-		// 		Type:      PlainMsg,
-		// 		Cmd:       []string{"./cabservice/sum.py", "100_000_000"},
-		// 	}
-
-		// 	go executeRPC(conn, serviceMethod, args, receiver)
-		// }
-
-		conns.RUnlock()
 
 		// 3. waiting for results
 		prioSum := mypriority.PrioVal
@@ -71,10 +44,9 @@ func startSyncCabInstance() {
 			}
 
 			prioQueue <- reply.ServerID
+			log.Infof("recv pClock: %v | serverID: %v", leaderPrioClock, reply.ServerID)
 
-			pManager.RLock()
-			fpriorities := pManager.m[leaderPrioClock]
-			pManager.RUnlock()
+			fpriorities := pManager.GetFollowerPriorities(leaderPrioClock)
 
 			prioSum += fpriorities[reply.ServerID]
 
@@ -86,9 +58,53 @@ func startSyncCabInstance() {
 		}
 
 		leaderPrioClock++
-		updateFollowerPriorities(leaderPrioClock, prioQueue)
+		pManager.UpdateFollowerPriorities(leaderPrioClock, prioQueue)
 		log.Infof("prio updated for pClock %v", leaderPrioClock)
 	}
+}
+
+func issuePlainMsgOps(pClock prioClock, p map[serverID]priority, method string, r chan Reply) {
+	conns.RLock()
+	defer conns.RUnlock()
+
+	for _, conn := range conns.m {
+		args := &Args{
+			PrioClock: pClock,
+			PrioVal:   p[conn.serverID],
+			Type:      PlainMsg,
+			CmdPlain:  genRandomBytes(1024),
+		}
+
+		go executeRPC(conn, method, args, r)
+	}
+}
+
+func issueMongoDBOps(pClock prioClock, p map[serverID]priority, method string, r chan Reply) {
+	conns.RLock()
+	defer conns.RUnlock()
+
+	//gob.Register([]mongodb.Query{})
+	cmd, err := mongodb.ReadQueryFromFile(mongodb.DataPath + "run_workload" + mongoLoadType + ".dat")
+	if err != nil {
+		log.Errorf("ReadQueryFromFile failed | err: %v", err)
+		return
+	}
+
+	for _, conn := range conns.m {
+		args := &Args{
+			PrioClock: pClock,
+			PrioVal:   p[conn.serverID],
+			Type:      MongoDB,
+			CmdMongo:  cmd,
+		}
+
+		go executeRPC(conn, method, args, r)
+	}
+
+}
+
+func issueTPCCOps() {
+
 }
 
 func executeRPC(conn ServerDock, serviceMethod string, args *Args, receiver chan Reply) {
@@ -101,7 +117,7 @@ func executeRPC(conn ServerDock, serviceMethod string, args *Args, receiver chan
 		return
 	}
 
-	log.Infof("RPC %s succeeded | result: %v", serviceMethod, reply)
+	log.Debugf("RPC %s succeeded | result: %v", serviceMethod, reply)
 
 	receiver <- reply
 }

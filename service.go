@@ -1,19 +1,11 @@
 package main
 
 import (
-	"encoding/gob"
+	"cabinet/mongodb"
 	"errors"
 	"fmt"
 	"os/exec"
 	"time"
-
-	"cabinet/mongodb"
-)
-
-const (
-	PlainMsg = iota
-	TPCC
-	MongoDB
 )
 
 type CabService struct{}
@@ -25,9 +17,11 @@ func NewCabService() *CabService {
 type Args struct {
 	PrioClock int
 	PrioVal   float64
-	// Cmd       []string
-	Cmd  interface{}
-	Type int
+	CmdPlain  []byte
+	CmdMongo  []mongodb.Query
+	// CmdTPCC  []string
+	CmdPy []string
+	Type  int
 }
 
 type Reply struct {
@@ -66,7 +60,19 @@ func (s *CabService) ConsensusService(args *Args, reply *Reply) error {
 func conJobPlainMsg(args *Args, reply *Reply) (err error) {
 	start := time.Now()
 
-	err = exec.Command("python3", args.Cmd.([]string)...).Run()
+	log.Infof("pClock: %v | msg: %x", args.PrioClock, args.CmdPlain)
+
+	reply.ExeTime = time.Now().Sub(start).String()
+	reply.ServerID = myServerID
+	reply.PrioClock = mypriority.PrioClock
+
+	return nil
+}
+
+func conJobPythonScript(args *Args, reply *Reply) (err error) {
+	start := time.Now()
+
+	err = exec.Command("python3", args.CmdPy...).Run()
 
 	if err != nil {
 		log.Errorf("run cmd failed | err: %v", err)
@@ -92,11 +98,11 @@ func conJobMongoDB(args *Args, reply *Reply) (err error) {
 	// do mongoDB work
 	// err = errors.New("waiting for implementation")
 
-	gob.Register([]mongodb.Query{})
+	//gob.Register([]mongodb.Query{})
 
 	start := time.Now()
 
-	queryResults, queryLatency, err := mongoDbFollower.FollowerAPI(args.Cmd.([]mongodb.Query))
+	queryResults, queryLatency, err := mongoDbFollower.FollowerAPI(args.CmdMongo)
 	if err != nil {
 		log.Errorf("run cmd failed | err: %v", err)
 		reply.ErrorMsg = err

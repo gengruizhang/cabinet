@@ -16,7 +16,7 @@ import (
 
 var log = logrus.New()
 
-const DataPath string = "./mongodbData/workData/"
+const DataPath string = "./ycsb/workData/"
 
 type MongoFollower struct {
 	clientThreadNum int
@@ -40,6 +40,7 @@ func NewMongoFollower(clientTNum int, queryTNum int) *MongoFollower {
 
 	// build MongoDB clients
 	uri := os.Getenv("MONGODB_URI")
+	log.Infof("mongodb url: %v", uri)
 	if uri == "" {
 		uri = "mongodb://localhost:27017/"
 		// log.Fatal("You must set your 'MONGODB_URI' environmental variable.
@@ -183,8 +184,7 @@ func (fl *MongoFollower) CleanUp() (err error) {
 	return
 }
 
-func followerClient(
-	db *mongo.Database, queries []Query, qThreadNum int) (
+func followerClient(db *mongo.Database, queries []Query, qThreadNum int) (
 	results [][]map[string]string, latency time.Duration, err error) {
 
 	if qThreadNum == 1 {
