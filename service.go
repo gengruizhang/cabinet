@@ -3,7 +3,6 @@ package main
 import (
 	"cabinet/mongodb"
 	"errors"
-	"fmt"
 	"os/exec"
 	"time"
 )
@@ -106,41 +105,43 @@ func conJobTPCC(args *Args, reply *Reply) (err error) {
 
 func conJobMongoDB(args *Args, reply *Reply) (err error) {
 
-	// do mongoDB work
-	// err = errors.New("waiting for implementation")
+	//if myServerID == 1 || myServerID == 2 {
+	//	time.Sleep(2 * time.Second)
+	//}
 
 	//gob.Register([]mongodb.Query{})
+	log.Debugf("Server %d is executing PClock %d", myServerID, args.PrioClock)
 
 	start := time.Now()
 
 	queryResults, queryLatency, err := mongoDbFollower.FollowerAPI(args.CmdMongo)
 	if err != nil {
-		log.Errorf("run cmd failed | err: %v", err)
+		log.Errorf("run cmd failed | err: %v | queryLatency %v", err, queryLatency)
 		reply.ErrorMsg = err
 		return
 	}
 
 	reply.ExeTime = time.Since(start).String()
-	//reply.ServerID = myServerID
-	//reply.PrioClock = mypriority.PrioClock
 
-	// Print results...
-	fmt.Println("Average latency of Mongo DB queries: ", queryLatency)
+	//fmt.Println("Average latency of Mongo DB queries: ", queryLatency)
 	for i, queryRes := range queryResults {
 		if i >= 2 && i < len(queryResults)-3 {
 			continue
 		}
-		fmt.Printf("\nResult of the %vth query: \n", i)
+		//fmt.Printf("\nResult of the %vth query: \n", i)
 		for _, queRes := range queryRes {
-			if uid, ok := queRes["_id"]; ok {
-				fmt.Println("_id", "is", uid)
+			//if uid, ok := queRes["_id"]; ok {
+			if _, ok := queRes["_id"]; ok {
+				//fmt.Println("_id", "is", uid)
 				delete(queRes, "_id")
 			}
-			for k, v := range queRes {
-				fmt.Println(k, "is", v)
-			}
+			//for k, v := range queRes {
+			//	fmt.Println(k, "is", v)
+			//}
 		}
 	}
+
+	log.Debugf("Server %d finished PClock %d", myServerID, args.PrioClock)
 
 	return
 }

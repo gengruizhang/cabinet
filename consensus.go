@@ -101,6 +101,7 @@ func issueMongoDBOps(pClock prioClock, p map[serverID]priority, method string, r
 
 	//gob.Register([]mongodb.Query{})
 	// cmd is all queries
+
 	for _, conn := range conns.m {
 		args := &Args{
 			PrioClock: pClock,
@@ -118,8 +119,19 @@ func issueTPCCOps() {
 
 }
 
-func executeRPC(conn ServerDock, serviceMethod string, args *Args, receiver chan ReplyInfo) {
+func executeRPC(conn *ServerDock, serviceMethod string, args *Args, receiver chan ReplyInfo) {
 	reply := Reply{}
+
+	stack := make(chan struct{}, 1)
+
+	conn.jobQMu.Lock()
+	conn.jobQ[args.PrioClock] = stack
+	conn.jobQMu.Unlock()
+
+	if args.PrioClock > 0 {
+		// Waiting for the completion of its previous RPC
+		<-conn.jobQ[args.PrioClock-1]
+	}
 
 	err := conn.txClient.Call(serviceMethod, args, &reply)
 
@@ -134,6 +146,10 @@ func executeRPC(conn ServerDock, serviceMethod string, args *Args, receiver chan
 		Recv:   reply,
 	}
 	receiver <- rinfo
+
+	conn.jobQMu.Lock()
+	conn.jobQ[args.PrioClock] <- struct{}{}
+	conn.jobQMu.Unlock()
 
 	log.Debugf("RPC %s succeeded | result: %+v", serviceMethod, rinfo)
 }

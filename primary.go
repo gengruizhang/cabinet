@@ -4,6 +4,7 @@ import (
 	"cabinet/config"
 	"net/rpc"
 	"strconv"
+	"sync"
 )
 
 func establishRPCs() {
@@ -23,11 +24,13 @@ func establishRPCs() {
 			return
 		}
 
-		newServer := ServerDock{
+		newServer := &ServerDock{
 			serverID:   serverID,
 			addr:       serverConfig[i][ip] + ":" + serverConfig[i][portOfRPCListener],
 			txClient:   nil,
 			prioClient: nil,
+			jobQMu:     sync.RWMutex{},
+			jobQ:       map[prioClock]chan struct{}{},
 		}
 
 		log.Infof("i: %d | newServer.addr: %v", i, newServer.addr)

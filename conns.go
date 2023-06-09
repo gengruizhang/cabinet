@@ -15,9 +15,9 @@ import (
 // conns does not store the operating servers' information
 var conns = struct {
 	sync.RWMutex
-	m map[int]ServerDock
+	m map[int]*ServerDock
 }{
-	m: make(map[int]ServerDock),
+	m: make(map[int]*ServerDock),
 }
 
 type ServerDock struct {
@@ -25,6 +25,8 @@ type ServerDock struct {
 	addr       string
 	txClient   *rpc.Client
 	prioClient *rpc.Client
+	jobQMu     sync.RWMutex
+	jobQ       map[prioClock]chan struct{}
 }
 
 func runFollower() {
