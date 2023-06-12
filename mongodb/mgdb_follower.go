@@ -22,10 +22,12 @@ type MongoFollower struct {
 	clientThreadNum int
 	queryThreadNum  int
 
+	dbName string
+
 	clients []*mongo.Client
 }
 
-func NewMongoFollower(clientTNum int, queryTNum int) *MongoFollower {
+func NewMongoFollower(clientTNum int, queryTNum int, dbID int) *MongoFollower {
 	if clientTNum <= 0 || queryTNum <= 0 {
 		err := errors.New("thread number should be positive integer")
 		log.Errorf("create MongoDB Follower failed | clientThreadNum: %v, queryThreadNum: %v, err: %v",
@@ -36,6 +38,12 @@ func NewMongoFollower(clientTNum int, queryTNum int) *MongoFollower {
 	follower := &MongoFollower{
 		clientThreadNum: clientTNum,
 		queryThreadNum:  queryTNum,
+	}
+
+	if dbID == 0 {
+		follower.dbName = "ycsb"
+	} else {
+		follower.dbName = "ycsb" + strconv.Itoa(dbID)
 	}
 
 	// build MongoDB clients
@@ -62,13 +70,6 @@ func NewMongoFollower(clientTNum int, queryTNum int) *MongoFollower {
 func (fl *MongoFollower) FollowerAPI(queries []Query) (
 	result [][]map[string]string, latency time.Duration, err error) {
 
-	// uri := os.Getenv("MONGODB_URI")
-	// if uri == "" {
-	// 	uri = "mongodb://localhost:27017/"
-	// 	// log.Fatal("You must set your 'MONGODB_URI' environmental variable.
-	// 	//			See\n\t https://www.mongodb.com/docs/drivers/go/current/usage-examples/#environment-variable")
-	// }
-
 	var wg sync.WaitGroup
 	mu := &sync.Mutex{}
 
@@ -87,12 +88,7 @@ func (fl *MongoFollower) FollowerAPI(queries []Query) (
 		go func(i int) {
 			defer wg.Done()
 
-			// cli, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(uri))
-			// if err != nil {
-			// 	log.Fatal(err)
-			// }
-
-			db := fl.clients[i].Database("ycsb")
+			db := fl.clients[i].Database(fl.dbName)
 			resultsPerClient, latPerClient, err := followerClient(db, queriesPerClient[i], fl.queryThreadNum)
 			if err != nil {
 				log.Fatal(err)
@@ -102,12 +98,6 @@ func (fl *MongoFollower) FollowerAPI(queries []Query) (
 			latency += latPerClient
 			result = append(result, resultsPerClient...)
 			mu.Unlock()
-
-			// defer func() {
-			// 	if err := cli.Disconnect(context.TODO()); err != nil {
-			// 		log.Fatal(err)
-			// 	}
-			// }()
 		}(i)
 	}
 	wg.Wait()
@@ -116,7 +106,7 @@ func (fl *MongoFollower) FollowerAPI(queries []Query) (
 	return result, latency, nil
 }
 
-func (fl *MongoFollower) ClearTable(table string) (err error) {
+func (fl *MongoFollower) clearTable(table string) (err error) {
 
 	deleteAll := Query{
 		Op:     DELETE,
@@ -173,6 +163,12 @@ func (fl *MongoFollower) PrintTable(table string) (err error) {
 }
 
 func (fl *MongoFollower) CleanUp() (err error) {
+	err = fl.clearTable("usertable")
+	if err != nil {
+		log.Errorf("clean up table failed | err: %v", err)
+		return
+	}
+
 	for _, cli := range fl.clients {
 		err = cli.Disconnect(context.TODO())
 		if err != nil {

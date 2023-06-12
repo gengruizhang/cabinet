@@ -8,7 +8,7 @@ import (
 func startSyncCabInstance() {
 	leaderPrioClock := 0
 	//pm := cabservice.NewPrioMgr(1, 1)
-	mongoDBAllQueries, err := mongodb.ReadQueryFromFile(mongodb.DataPath + "run_workload" + mongoLoadType + ".dat")
+	mongoDBQueries, err := mongodb.ReadQueryFromFile(mongodb.DataPath + "run_workload" + mongoLoadType + ".dat")
 	if err != nil {
 		log.Errorf("ReadQueryFromFile failed | err: %v", err)
 		return
@@ -27,22 +27,13 @@ func startSyncCabInstance() {
 		log.Infof("pClock: %v | priorities: %+v", leaderPrioClock, fpriorities)
 
 		// 2. broadcast rpcs
-
-		// mongoDB
 		switch evalType {
 		case PlainMsg:
 			issuePlainMsgOps(leaderPrioClock, fpriorities, serviceMethod, receiver)
 		case TPCC:
 
 		case MongoDB:
-			left := leaderPrioClock * batchsize
-			right := (leaderPrioClock+1)*batchsize - 1
-			if right > len(mongoDBAllQueries) {
-				log.Infof("MongoDB evaluation finished")
-				break
-			}
-			mongoCmd := mongoDBAllQueries[left:right]
-			issueMongoDBOps(leaderPrioClock, fpriorities, serviceMethod, receiver, mongoCmd)
+			issueMongoDBOps(leaderPrioClock, fpriorities, serviceMethod, receiver, mongoDBQueries)
 		}
 
 		// 3. waiting for results
@@ -95,19 +86,23 @@ func issuePlainMsgOps(pClock prioClock, p map[serverID]priority, method string, 
 	}
 }
 
-func issueMongoDBOps(pClock prioClock, p map[serverID]priority, method string, r chan ReplyInfo, cmd []mongodb.Query) {
+func issueMongoDBOps(pClock prioClock, p map[serverID]priority, method string, r chan ReplyInfo, allQueries []mongodb.Query) {
 	conns.RLock()
 	defer conns.RUnlock()
 
-	//gob.Register([]mongodb.Query{})
-	// cmd is all queries
+	left := pClock * batchsize
+	right := (pClock+1)*batchsize - 1
+	if right > len(allQueries) {
+		log.Infof("MongoDB evaluation finished")
+		return
+	}
 
 	for _, conn := range conns.m {
 		args := &Args{
 			PrioClock: pClock,
 			PrioVal:   p[conn.serverID],
 			Type:      MongoDB,
-			CmdMongo:  cmd,
+			CmdMongo:  allQueries[left:right],
 		}
 
 		go executeRPC(conn, method, args, r)

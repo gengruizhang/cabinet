@@ -22,7 +22,7 @@ func main() {
 	runTime := true
 	var err error
 	var startTime time.Time
-	mgFollower := NewMongoFollower(clientThreadNum, queryThreadNum)
+	mgFollower := NewMongoFollower(clientThreadNum, queryThreadNum, 0)
 
 	// defer func() { fmt.Println(timeTests(buildClientTest)) }()
 
@@ -38,7 +38,7 @@ func main() {
 			case "run":
 				fileName = "run_workloada.dat"
 			case "clear":
-				if err := mgFollower.ClearTable("usertable"); err != nil {
+				if err := mgFollower.clearTable("usertable"); err != nil {
 					log.Fatal(err)
 				}
 				return
