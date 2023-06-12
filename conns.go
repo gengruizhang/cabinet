@@ -75,33 +75,28 @@ func initTPCC() {
 }
 
 func initMongoDB() {
-	// Mongo DB follower initialization
 	gob.Register([]mongodb.Query{})
-	queryTable := "usertable"
 
-	mongoDbFollower = mongodb.NewMongoFollower(mongoClientNum, int(1))
-	queriesToLoad, err := mongodb.ReadQueryFromFile(mongodb.DataPath + "workload" + mongoLoadType + ".dat")
+	if mode == Localhost {
+		mongoDbFollower = mongodb.NewMongoFollower(mongoClientNum, int(1), myServerID)
+	} else {
+		mongoDbFollower = mongodb.NewMongoFollower(mongoClientNum, int(1), 0)
+	}
+
+	queriesToLoad, err := mongodb.ReadQueryFromFile(mongodb.DataPath + "workload.dat")
 	if err != nil {
 		log.Errorf("getting load data failed | error: %v", err)
 		return
 	}
 
-	if myServerID == 1 || mode == Distributed {
-		err = mongoDbFollower.ClearTable(queryTable)
-		if err != nil {
-			log.Errorf("clear table failed | error: %v", err)
-			return
-		}
-		log.Debugf("loading data to Mongo DB")
-		_, _, err = mongoDbFollower.FollowerAPI(queriesToLoad)
-		if err != nil {
-			log.Errorf("load data failed | error: %v", err)
-			return
-		}
+	log.Debugf("loading data to Mongo DB")
+	_, _, err = mongoDbFollower.FollowerAPI(queriesToLoad)
+	if err != nil {
+		log.Errorf("load data failed | error: %v", err)
+		return
 	}
 
 	log.Debugf("mongo DB initialization done")
-	// Mongo DB follower initialization done
 }
 
 // mongoDBCleanUp cleans up client connections to DB upon ctrl+C
