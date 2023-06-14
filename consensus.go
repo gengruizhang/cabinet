@@ -60,7 +60,10 @@ func startSyncCabInstance() {
 		}
 
 		leaderPrioClock++
-		pManager.UpdateFollowerPriorities(leaderPrioClock, prioQueue)
+		err := pManager.UpdateFollowerPriorities(leaderPrioClock, prioQueue, mystate.GetLeaderID())
+		if err != nil {
+			log.Errorf("UpdateFollowerPriorities failed | err: %v", err)
+		}
 		log.Infof("prio updated for pClock %v", leaderPrioClock)
 	}
 }

@@ -1,6 +1,7 @@
 package smr
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sync"
@@ -80,45 +81,50 @@ func sum(arr []float64) float64 {
 	return total
 }
 
-func (pm *PriorityManager) UpdateFollowerPriorities(pClock int, prioQueue chan serverID) {
+func (pm *PriorityManager) UpdateFollowerPriorities(pClock prioClock, prioQueue chan serverID, leaderID serverID) error {
 
 	newPriorities := make(map[serverID]priority)
-	serverIDIndicator := make([]serverID, pm.n)
+	arranged := make(map[serverID]bool)
 
-	for i := 0; i < len(serverIDIndicator); i++ {
-		serverIDIndicator[i] = i
+	for i := 0; i < pm.n; i++ {
+		arranged[i] = false
 	}
 
-	for i := 0; i < len(prioQueue); i++ {
+	nr := len(prioQueue)
+
+	for i := 0; i < nr; i++ {
 		s := <-prioQueue
 		// skip leader
 		newPriorities[s] = pm.scheme[i+1]
 
-		// Identify IDs that will be removed below
-		index := -1
-		for i, id := range serverIDIndicator {
-			if id == s {
-				index = i
-				break
-			}
-		}
+		arranged[s] = true
 
-		// Remove the ID from the slice if found
-		if index != -1 {
-			serverIDIndicator = append(serverIDIndicator[1:index], serverIDIndicator[index+1:]...)
-		}
-
+		//fmt.Printf("pc: %d | processing %d is done | i is: %d | arranged %+v \n ", pClock, s, i, arranged)
 	}
 
-	i := len(prioQueue) + 1
-	for _, id := range serverIDIndicator {
-		newPriorities[id] = pm.scheme[i]
-		i++
+	i := nr + 1
+
+	for id, done := range arranged {
+		if !done {
+			if id == leaderID {
+				newPriorities[id] = pm.scheme[0]
+				continue
+			}
+
+			if i == len(pm.scheme) {
+				err := fmt.Sprintf("priority assignment of [%v] exceeds pm scheme length [%v]", i, len(pm.scheme))
+				return errors.New(err)
+			}
+			newPriorities[id] = pm.scheme[i]
+			i++
+		}
 	}
 
 	pm.Lock()
 	pm.m[pClock] = newPriorities
 	pm.Unlock()
+	//fmt.Printf("newPriorities: %+v\n", newPriorities)
+	return nil
 }
 
 func (pm *PriorityManager) GetFollowerPriorities(pClock int) (fpriorities map[serverID]priority) {
