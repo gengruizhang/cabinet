@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cabinet/eval"
 	"cabinet/mongodb"
 	"cabinet/smr"
 	"fmt"
@@ -12,6 +13,8 @@ var log = logrus.New()
 var mypriority = smr.NewServerPriority(-1, 0)
 var mystate = smr.NewServerState()
 var pManager smr.PriorityManager
+
+var perfM eval.PerfMeter
 
 // Mongo DB variables
 var mongoDbFollower *mongodb.MongoFollower
@@ -29,6 +32,10 @@ func init() {
 	mystate.SetLeaderID(0)
 
 	pManager.Init(numOfServers, faults, 1)
+
+	fileName := fmt.Sprintf("s%d_n%d_f%d_b%d_%s", myServerID, numOfServers, faults, batchsize, suffix)
+
+	perfM.Init(1, batchsize, fileName)
 }
 
 func main() {
@@ -44,7 +51,6 @@ func main() {
 		establishRPCs()
 		startSyncCabInstance()
 	} else {
-
 		runFollower()
 		// tpccDependency()
 	}

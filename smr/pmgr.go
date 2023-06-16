@@ -7,14 +7,6 @@ import (
 	"sync"
 )
 
-// 1, 2, 3, 4, 5
-// pManager is used to manage follower priorities by the leader
-//
-//	var pManager = struct {
-//		sync.RWMutex
-//		m map[prioClock]map[serverID]priority
-//	}{m: make(map[prioClock]map[serverID]priority)}
-
 type serverID = int
 type prioClock = int
 type priority = float64
@@ -68,7 +60,7 @@ func calcInitPrioRatio(n, f int) (ratio float64) {
 		if math.Pow(r, float64(n-f+1)) > 0.5*(math.Pow(r, float64(n))+1) && 0.5*(math.Pow(r, float64(n))+1) > math.Pow(r, float64(n-f)) {
 			return r
 		} else {
-			r -= 0.01
+			r -= 0.001
 		}
 	}
 }

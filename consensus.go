@@ -33,7 +33,15 @@ func startSyncCabInstance() {
 		case TPCC:
 
 		case MongoDB:
-			issueMongoDBOps(leaderPrioClock, fpriorities, serviceMethod, receiver, mongoDBQueries)
+			perfM.RecordStarter(leaderPrioClock)
+
+			if issueMongoDBOps(leaderPrioClock, fpriorities, serviceMethod, receiver, mongoDBQueries) {
+				err := perfM.SaveToFile()
+				if err != nil {
+					log.Errorf("perfM save to file failed | err: %v", err)
+				}
+				return
+			}
 		}
 
 		// 3. waiting for results
@@ -50,6 +58,12 @@ func startSyncCabInstance() {
 			prioSum += fpriorities[rinfo.SID]
 
 			if prioSum > mypriority.Majority {
+				err := perfM.RecordFinisher(leaderPrioClock)
+				if err != nil {
+					log.Errorf("PerfMeter failed | err: %v", err)
+					return
+				}
+
 				timeElapsed := time.Now().Sub(startTime)
 				mystate.AddCommitIndex(batchsize)
 
@@ -89,7 +103,7 @@ func issuePlainMsgOps(pClock prioClock, p map[serverID]priority, method string, 
 	}
 }
 
-func issueMongoDBOps(pClock prioClock, p map[serverID]priority, method string, r chan ReplyInfo, allQueries []mongodb.Query) {
+func issueMongoDBOps(pClock prioClock, p map[serverID]priority, method string, r chan ReplyInfo, allQueries []mongodb.Query) (allDone bool) {
 	conns.RLock()
 	defer conns.RUnlock()
 
@@ -97,6 +111,7 @@ func issueMongoDBOps(pClock prioClock, p map[serverID]priority, method string, r
 	right := (pClock+1)*batchsize - 1
 	if right > len(allQueries) {
 		log.Infof("MongoDB evaluation finished")
+		allDone = true
 		return
 	}
 
@@ -111,6 +126,7 @@ func issueMongoDBOps(pClock prioClock, p map[serverID]priority, method string, r
 		go executeRPC(conn, method, args, r)
 	}
 
+	return
 }
 
 func issueTPCCOps() {
