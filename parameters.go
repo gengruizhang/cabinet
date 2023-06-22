@@ -61,5 +61,5 @@ func loadCommandLineInputs() {
 
 	flag.Parse()
 
-	log.Infof("CommandLine parameters:\n - numOfServers:%v\n - myServerID:%v\n", numOfServers, myServerID)
+	log.Debugf("CommandLine parameters:\n - numOfServers:%v\n - myServerID:%v\n", numOfServers, myServerID)
 }

@@ -48,7 +48,7 @@ func NewMongoFollower(clientTNum int, queryTNum int, dbID int) *MongoFollower {
 
 	// build MongoDB clients
 	uri := os.Getenv("MONGODB_URI")
-	log.Infof("mongodb url: %v", uri)
+	log.Debugf("mongodb url: %v", uri)
 	if uri == "" {
 		uri = "mongodb://localhost:27017/"
 		// log.Fatal("You must set your 'MONGODB_URI' environmental variable.
@@ -106,7 +106,7 @@ func (fl *MongoFollower) FollowerAPI(queries []Query) (
 	return result, latency, nil
 }
 
-func (fl *MongoFollower) clearTable(table string) (err error) {
+func (fl *MongoFollower) ClearTable(table string) (err error) {
 
 	deleteAll := Query{
 		Op:     DELETE,
@@ -163,7 +163,7 @@ func (fl *MongoFollower) PrintTable(table string) (err error) {
 }
 
 func (fl *MongoFollower) CleanUp() (err error) {
-	err = fl.clearTable("usertable")
+	err = fl.ClearTable("usertable")
 	if err != nil {
 		log.Errorf("clean up table failed | err: %v", err)
 		return

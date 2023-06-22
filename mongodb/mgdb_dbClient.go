@@ -45,7 +45,7 @@ func dbInsert(db *mongo.Database, table string, key string,
 	}
 
 	if _, err = coll.InsertOne(context.TODO(), insValues); err != nil {
-		panic(err)
+		return err
 	}
 	return nil
 
@@ -57,7 +57,7 @@ func dbRead(db *mongo.Database, table string, key string,
 	coll := db.Collection(table)
 	filter := bson.D{}
 	if key == "" {
-		log.Println("Find all in table", coll.Name())
+		log.Errorf("Find all in table", coll.Name())
 	} else {
 		filter = bson.D{{"_id", key}}
 	}
@@ -73,11 +73,11 @@ func dbRead(db *mongo.Database, table string, key string,
 	}
 
 	if _, ok := fields["<all fields>"]; !ok {
-		log.Println("Unsupported field projection")
+		log.Errorf("Unsupported field projection")
 	}
 
 	if len(results) == 0 {
-		log.Printf("_id %s does not exist in table %s\n", key, coll.Name())
+		log.Debugf("_id %s does not exist in table %s\n", key, coll.Name())
 		return results, nil
 	}
 
@@ -123,7 +123,7 @@ func dbScan(db *mongo.Database, table string, startkey string, recordcount int,
 		return nil, err
 	}
 	if _, ok := fields["<all fields>"]; !ok {
-		log.Println("Unsupported field projection")
+		log.Errorf("Unsupported field projection")
 	}
 
 	results, err = fillMap(*cursor)

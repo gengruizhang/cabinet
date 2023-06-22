@@ -38,7 +38,7 @@ func main() {
 			case "run":
 				fileName = "run_workloada.dat"
 			case "clear":
-				if err := mgFollower.clearTable("usertable"); err != nil {
+				if err := mgFollower.ClearTable("usertable"); err != nil {
 					log.Fatal(err)
 				}
 				return
