@@ -4,6 +4,7 @@ import (
 	"cabinet/eval"
 	"cabinet/mongodb"
 	"cabinet/smr"
+	"cabinet/tpcc"
 	"fmt"
 	"github.com/sirupsen/logrus"
 )
@@ -18,6 +19,9 @@ var perfM eval.PerfMeter
 
 // Mongo DB variables
 var mongoDbFollower *mongodb.MongoFollower
+
+// TPCC variables
+var tpccFollower *tpcc.TPCCFollower
 
 // Create Cabinet alias
 type serverID = int

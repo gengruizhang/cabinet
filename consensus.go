@@ -2,6 +2,9 @@ package main
 
 import (
 	"cabinet/mongodb"
+	"cabinet/tpcc"
+	"fmt"
+	"math"
 	"time"
 )
 
@@ -12,6 +15,12 @@ func startSyncCabInstance() {
 	if err != nil {
 		log.Errorf("ReadQueryFromFile failed | err: %v", err)
 		return
+	}
+
+	executionRounds := int(math.Ceil(float64(tpcc.TpccConfig.TotalCount) / float64(batchsize)))
+	allArgs, err := registerTPCCTxns(executionRounds)
+	if err != nil {
+		log.Errorf("error during transactions preparation | err: %v", err)
 	}
 
 	for {
@@ -31,7 +40,28 @@ func startSyncCabInstance() {
 		case PlainMsg:
 			issuePlainMsgOps(leaderPrioClock, fpriorities, serviceMethod, receiver)
 		case TPCC:
-
+			perfM.RecordStarter(leaderPrioClock)
+			//transactions, seeds, err := tpcc.PrepareArgs(tpcc.TpccConfig)
+			//if err != nil {
+			//	log.Errorf("error during transactions preparation | err: %v", err)
+			//}
+			//args := tpcc.TpccArgs{
+			//	TpccConfig:   tpcc.TpccConfig,
+			//	Transactions: transactions,
+			//	Seeds:        seeds,
+			//}
+			if issueTPCCOps(leaderPrioClock, fpriorities, serviceMethod, receiver, allArgs) {
+				//err := perfM.SaveToFile()
+				//if err != nil {
+				//	log.Errorf("perfM save to file failed | err: %v", err)
+				//}
+				//return
+				fmt.Println("Performance metrics here")
+				//fmt.Println(receiver)
+				//for rep := range receiver {
+				//	fmt.Println(rep.SID)
+				//}
+			}
 		case MongoDB:
 			perfM.RecordStarter(leaderPrioClock)
 
@@ -103,6 +133,61 @@ func issuePlainMsgOps(pClock prioClock, p map[serverID]priority, method string, 
 	}
 }
 
+func issueTPCCOps(pClock prioClock, p map[serverID]priority, method string, r chan ReplyInfo, allArgs []tpcc.TpccArgs) (allDone bool) {
+	conns.RLock()
+	defer conns.RUnlock()
+
+	if pClock >= len(allArgs) {
+		log.Infof("TPCC evaluation finished")
+		allDone = true
+		return
+	}
+
+	for _, conn := range conns.m {
+		args := &Args{
+			PrioClock: pClock,
+			PrioVal:   p[conn.serverID],
+			Type:      TPCC,
+			CmdTPCC:   allArgs[pClock],
+		}
+
+		go executeRPC(conn, method, args, r)
+
+		fmt.Println(r)
+
+	}
+
+	return
+}
+
+func registerTPCCTxns(executionRounds int) (allArgs []tpcc.TpccArgs, err error) {
+
+	var transactions map[int][]interface{}
+	var seeds map[int]int64
+
+	for i := 0; i < executionRounds; i++ {
+		if i == executionRounds-1 {
+			txnLeft := tpcc.TpccConfig.TotalCount - i*batchsize
+			transactions, seeds, err = tpcc.PrepareArgs(tpcc.TpccConfig, txnLeft)
+		} else {
+			transactions, seeds, err = tpcc.PrepareArgs(tpcc.TpccConfig, batchsize)
+		}
+
+		if err != nil {
+			log.Errorf("error during transactions preparation | err: %v", err)
+		}
+		args := tpcc.TpccArgs{
+			TpccConfig:   tpcc.TpccConfig,
+			Transactions: transactions,
+			Seeds:        seeds,
+		}
+		allArgs = append(allArgs, args)
+	}
+
+	return allArgs, err
+
+}
+
 func issueMongoDBOps(pClock prioClock, p map[serverID]priority, method string, r chan ReplyInfo, allQueries []mongodb.Query) (allDone bool) {
 	conns.RLock()
 	defer conns.RUnlock()
@@ -127,10 +212,6 @@ func issueMongoDBOps(pClock prioClock, p map[serverID]priority, method string, r
 	}
 
 	return
-}
-
-func issueTPCCOps() {
-
 }
 
 func executeRPC(conn *ServerDock, serviceMethod string, args *Args, receiver chan ReplyInfo) {
@@ -160,6 +241,7 @@ func executeRPC(conn *ServerDock, serviceMethod string, args *Args, receiver cha
 		Recv:   reply,
 	}
 	receiver <- rinfo
+	fmt.Println(receiver)
 
 	conn.jobQMu.Lock()
 	conn.jobQ[args.PrioClock] <- struct{}{}
