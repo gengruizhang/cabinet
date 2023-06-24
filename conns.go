@@ -79,7 +79,6 @@ func initTPCC() {
 	gob.Register(tpcc.OrderStatusTxn{})
 	gob.Register(tpcc.DeliveryTxn{})
 	gob.Register(tpcc.TpccState{})
-	//gob.Register(context.Background().Value())
 	readTpccConfig()
 	tpccFollower = tpcc.NewTpccFollower(tpcc.TpccConfig)
 	//tpcc.OpenDB(tpcc.TpccConfig)

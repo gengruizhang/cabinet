@@ -69,7 +69,7 @@ func loadCommandLineInputs() {
 	flag.DurationVar(&tpcc.TpccConfig.PrepareRetryInterval, "retry-interval", 10*time.Second, "The interval for each retry")
 	flag.DurationVar(&tpcc.TpccConfig.MaxMeasureLatency, "max-measure-latency", measurement.DefaultMaxLatency, "max measure latency in millisecond")
 	flag.DurationVar(&tpcc.TpccConfig.TotalTime, "time", 1<<63-1, "Total execution time")
-	readTpccConfig()
+	tpcc.TpccConfig.Targets = append(tpcc.TpccConfig.Targets, "")
 
 	// suffix of files
 	flag.StringVar(&suffix, "suffix", "xxx", "suffix of files")

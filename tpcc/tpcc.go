@@ -115,7 +115,6 @@ func execute(timeoutCtx context.Context, w workload.Workloader, action string, t
 	//	return w.Check(ctx, index)
 
 	for i := 0; i < count || count <= 0; i++ {
-		//fmt.Println(i)
 		err := w.Run(ctx, index, i)
 		if err != nil {
 			if !TpccConfig.Silence {

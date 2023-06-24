@@ -51,11 +51,11 @@ func main() {
 	fmt.Printf("majority: %v\n", mypriority.Majority)
 
 	if myServerID == 0 {
-		mypriority.PrioVal = pscheme[0] // leader has the highest priority
+		mypriority.PrioVal = pscheme[0]
+		readTpccConfig() // leader has the highest priority
 		establishRPCs()
 		startSyncCabInstance()
 	} else {
 		runFollower()
-		// tpccDependency()
 	}
 }

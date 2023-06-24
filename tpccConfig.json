@@ -8,7 +8,7 @@
   "Ports": [5432],
   "StatusPort": 10080,
   "AcThreads": 1,
-  "TotalCount": 12000,
+  "TotalCount": 30000,
   "DropData": false,
   "IgnoreError": true,
   "Silence": false,

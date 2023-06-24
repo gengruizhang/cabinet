@@ -35,10 +35,10 @@ type Reply struct {
 	// ServerID  int
 	// PrioClock int
 
-	Result   int
-	ExeTime  string
-	ErrorMsg error
-	Metrics  []map[string]string
+	Result      int
+	ExeTime     string
+	ErrorMsg    error
+	TpccMetrics []map[string]string
 }
 
 func (s *CabService) ConsensusService(args *Args, reply *Reply) error {
@@ -105,7 +105,7 @@ func conJobTPCC(args *Args, reply *Reply) (err error) {
 	tpccFollower.TpccService(args.CmdTPCC, &metrics)
 	//tpcc.TpccService(args.CmdTPCC)
 	reply.ExeTime = time.Now().Sub(start).String()
-	reply.Metrics = metrics
+	reply.TpccMetrics = metrics
 	return
 }
 

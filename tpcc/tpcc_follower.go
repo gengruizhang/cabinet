@@ -187,11 +187,14 @@ func isDBNotExist(tpccConfig Config, err error) bool {
 
 func (fl *TPCCFollower) TpccService(args TpccArgs, metrics *[]map[string]string) {
 
-	//Set some configuration parameters sent from the leader
-	TpccConfig.Action = args.TpccConfig.Action
+	//Set configuration parameters sent from the leader
+	TpccConfig = args.TpccConfig
+	//TpccConfig.Action = args.TpccConfig.Action
 	TpccConfig.Threads = fl.clientThreadNum
-	//TpccConfig.Threads = args.TpccConfig.Threads
-	TpccConfig.TotalCount = args.TpccConfig.TotalCount
+	//TpccConfig.TotalCount = args.TpccConfig.TotalCount
+	//TpccConfig.MaxProcs = args.TpccConfig.MaxProcs
+	//TpccConfig.TotalTime = args.TpccConfig.TotalTime
+	//TpccConfig.OutputInterval = args.TpccConfig.OutputInterval
 
 	if len(TpccConfig.Targets) == 0 {
 		TpccConfig.Targets = makeTargets(TpccConfig.Hosts, TpccConfig.Ports)

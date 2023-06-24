@@ -1,10 +1,11 @@
 package main
 
 import (
+	"cabinet/eval"
 	"cabinet/mongodb"
 	"cabinet/tpcc"
-	"fmt"
 	"math"
+	"strconv"
 	"time"
 )
 
@@ -17,7 +18,7 @@ func startSyncCabInstance() {
 		return
 	}
 
-	executionRounds := int(math.Ceil(float64(tpcc.TpccConfig.TotalCount) / float64(batchsize)))
+	executionRounds := int(math.Floor(float64(tpcc.TpccConfig.TotalCount) / float64(batchsize)))
 	allArgs, err := registerTPCCTxns(executionRounds)
 	if err != nil {
 		log.Errorf("error during transactions preparation | err: %v", err)
@@ -51,16 +52,11 @@ func startSyncCabInstance() {
 			//	Seeds:        seeds,
 			//}
 			if issueTPCCOps(leaderPrioClock, fpriorities, serviceMethod, receiver, allArgs) {
-				//err := perfM.SaveToFile()
-				//if err != nil {
-				//	log.Errorf("perfM save to file failed | err: %v", err)
-				//}
-				//return
-				fmt.Println("Performance metrics here")
-				//fmt.Println(receiver)
-				//for rep := range receiver {
-				//	fmt.Println(rep.SID)
-				//}
+				err := perfM.SaveToFileTpcc()
+				if err != nil {
+					log.Errorf("perfM save to file failed | err: %v", err)
+				}
+				return
 			}
 		case MongoDB:
 			perfM.RecordStarter(leaderPrioClock)
@@ -77,6 +73,7 @@ func startSyncCabInstance() {
 		// 3. waiting for results
 		prioSum := mypriority.PrioVal
 		prioQueue := make(chan serverID, numOfServers)
+		var followersResults []ReplyInfo
 
 		for rinfo := range receiver {
 
@@ -87,11 +84,18 @@ func startSyncCabInstance() {
 
 			prioSum += fpriorities[rinfo.SID]
 
+			followersResults = append(followersResults, rinfo)
+
 			if prioSum > mypriority.Majority {
 				err := perfM.RecordFinisher(leaderPrioClock)
 				if err != nil {
 					log.Errorf("PerfMeter failed | err: %v", err)
 					return
+				}
+
+				//If we run TPCC, keep the execution metrics
+				if len(rinfo.Recv.TpccMetrics) != 0 {
+					RecordTpccMetrics(&perfM, rinfo, leaderPrioClock, followersResults)
 				}
 
 				timeElapsed := time.Now().Sub(startTime)
@@ -153,8 +157,6 @@ func issueTPCCOps(pClock prioClock, p map[serverID]priority, method string, r ch
 
 		go executeRPC(conn, method, args, r)
 
-		fmt.Println(r)
-
 	}
 
 	return
@@ -185,6 +187,27 @@ func registerTPCCTxns(executionRounds int) (allArgs []tpcc.TpccArgs, err error) 
 	}
 
 	return allArgs, err
+
+}
+
+func RecordTpccMetrics(m *eval.PerfMeter, lastReply ReplyInfo, pClock prioClock, followersResults []ReplyInfo) {
+
+	for j := 0; j < 5; j++ {
+
+		//txnMetric -> transaction metrics of last response
+		txnMetric := lastReply.Recv.TpccMetrics[j]
+		avgTPM := 0.0
+		avgExecLat := 0.0
+		for _, res := range followersResults {
+			tpm, _ := strconv.ParseFloat(res.Recv.TpccMetrics[j]["TPM"], 64)
+			lat, _ := strconv.ParseFloat(res.Recv.TpccMetrics[j]["Avg(ms)"], 64)
+			avgTPM += tpm
+			avgExecLat += lat
+		}
+		avgTPM = avgTPM / float64(len(followersResults))
+		avgExecLat = avgExecLat / float64(len(followersResults))
+		m.RecordTpccTxnMetrics(pClock, txnMetric, avgTPM, avgExecLat)
+	}
 
 }
 
@@ -241,7 +264,6 @@ func executeRPC(conn *ServerDock, serviceMethod string, args *Args, receiver cha
 		Recv:   reply,
 	}
 	receiver <- rinfo
-	fmt.Println(receiver)
 
 	conn.jobQMu.Lock()
 	conn.jobQ[args.PrioClock] <- struct{}{}
