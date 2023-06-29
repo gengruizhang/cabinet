@@ -35,7 +35,7 @@ func init() {
 	mystate.SetMyServerID(myServerID)
 	mystate.SetLeaderID(0)
 
-	pManager.Init(numOfServers, faults, 1)
+	pManager.Init(numOfServers, faults, 1, enablePriority)
 
 	fileName := fmt.Sprintf("s%d_n%d_f%d_b%d_%s", myServerID, numOfServers, faults, batchsize, suffix)
 

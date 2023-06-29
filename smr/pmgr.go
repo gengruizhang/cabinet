@@ -20,19 +20,22 @@ type PriorityManager struct {
 	f        int
 }
 
-func (pm *PriorityManager) Init(numOfServers, numOfFaults, baseOfPriorities int) {
+func (pm *PriorityManager) Init(numOfServers, numOfFaults, baseOfPriorities int, isCab bool) {
 	pm.n = numOfServers
 	pm.f = numOfFaults
 	pm.m = make(map[prioClock]map[serverID]priority)
 
-	ratio := calcInitPrioRatio(numOfServers, numOfFaults)
+	ratio := 1.0
+	if isCab {
+		ratio = calcInitPrioRatio(numOfServers, numOfFaults)
+	}
 	fmt.Println("ratio: ", ratio)
 
 	newPriorities := make(map[serverID]priority)
 
 	for i := 0; i < numOfServers; i++ {
 		p := float64(baseOfPriorities) * math.Pow(ratio, float64(i))
-		newPriorities[i] = p
+		newPriorities[numOfServers-1-i] = p
 		pm.scheme = append(pm.scheme, p)
 	}
 
@@ -60,7 +63,7 @@ func calcInitPrioRatio(n, f int) (ratio float64) {
 		if math.Pow(r, float64(n-f+1)) > 0.5*(math.Pow(r, float64(n))+1) && 0.5*(math.Pow(r, float64(n))+1) > math.Pow(r, float64(n-f)) {
 			return r
 		} else {
-			r -= 0.001
+			r -= 0.0001
 		}
 	}
 }
