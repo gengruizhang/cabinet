@@ -31,6 +31,10 @@ var enablePriority bool
 var mongoLoadType string
 var mongoClientNum int
 
+// crash test parameters
+var crashTime int
+var crashMode int
+
 // suffix of files
 var suffix string
 
@@ -55,6 +59,10 @@ func loadCommandLineInputs() {
 	flag.IntVar(&mongoClientNum, "mcli", 16, "# of mongodb clients")
 
 	// TPC-C input parameters
+
+	// crash test parameters
+	flag.IntVar(&crashTime, "ct", 20, "# of rounds before crash")
+	flag.IntVar(&crashMode, "cm", 0, "0 -> no crash; 1 -> strong machines; 2 -> weak machines; 3 -> random machines")
 
 	// suffix of files
 	flag.StringVar(&suffix, "suffix", "xxx", "suffix of files")

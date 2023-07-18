@@ -108,14 +108,14 @@ func (fl *MongoFollower) FollowerAPI(queries []Query) (
 
 func (fl *MongoFollower) ClearTable(table string) (err error) {
 
-	deleteAll := Query{
-		Op:     DELETE,
+	dropTable := Query{
+		Op:     DROP,
 		Table:  table,
 		Key:    "",
 		Values: nil,
 	}
 
-	_, _, err = fl.FollowerAPI([]Query{deleteAll})
+	_, _, err = fl.FollowerAPI([]Query{dropTable})
 
 	if err != nil {
 		log.Errorf("clear table failed | err: %v")
@@ -272,6 +272,9 @@ func queryHandler(db *mongo.Database, query Query) (opRes []map[string]string, e
 	case DELETE:
 		dbDelete(db, query.Table, query.Key)
 		opRes = append(opRes, map[string]string{"DELETE": "done"})
+	case DROP:
+		dbDrop(db, query.Table)
+		opRes = append(opRes, map[string]string{"DROP": "done"})
 	default:
 		return nil, fmt.Errorf("Unexpected operator: %s\n", strconv.Itoa(query.Op))
 	}

@@ -144,3 +144,10 @@ func dbDelete(db *mongo.Database, table string, key string) (err error) {
 
 	return err
 }
+
+func dbDrop(db *mongo.Database, table string) (err error) {
+	coll := db.Collection(table)
+	err = coll.Drop(context.TODO())
+
+	return
+}

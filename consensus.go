@@ -2,6 +2,7 @@ package main
 
 import (
 	"cabinet/mongodb"
+	"math/rand"
 	"time"
 )
 
@@ -14,11 +15,23 @@ func startSyncCabInstance() {
 		return
 	}
 
+	// prepare crash list
+	crashList := prepCrashList()
+
 	for {
 
 		serviceMethod := "CabService.ConsensusService"
 
 		receiver := make(chan ReplyInfo, numOfServers)
+
+		// crash tests
+		if leaderPrioClock == crashTime && crashMode != 0 {
+			conns.Lock()
+			for _, sID := range crashList {
+				delete(conns.m, sID)
+			}
+			conns.Unlock()
+		}
 
 		startTime := time.Now()
 
@@ -131,6 +144,57 @@ func issueMongoDBOps(pClock prioClock, p map[serverID]priority, method string, r
 
 func issueTPCCOps() {
 
+}
+
+func prepCrashList() (crashList []int) {
+	switch crashMode {
+	case 0:
+		break
+	case 1:
+		for i := 1; i < faults; i++ {
+			crashList = append(crashList, i)
+		}
+	case 2:
+		for i := 1; i < faults; i++ {
+			crashList = append(crashList, numOfServers-i)
+		}
+	case 3:
+		// // evenly distributed
+		// for i := 0; i < 5; i++ {
+		// 	for j := 1; j <= (faults-1) / 5; j++ {
+		// 		crashList = append(crashList, i*(numOfServers/5) + j)
+		// 	}
+		// }
+
+		// randomly distributed
+		rand.Seed(time.Now().UnixNano())
+
+		for i := 1; i < faults; i++ {
+			contains := false
+			for {
+				crashID := rand.Intn(numOfServers-1) + 1
+
+				for _, cID := range crashList {
+					if cID == crashID {
+						contains = true
+						break
+					}
+				}
+
+				if contains {
+					contains = false
+					continue
+				} else {
+					crashList = append(crashList, crashID)
+					break
+				}
+			}
+		}
+	default:
+		break
+	}
+
+	return
 }
 
 func executeRPC(conn *ServerDock, serviceMethod string, args *Args, receiver chan ReplyInfo) {
