@@ -36,7 +36,7 @@ var suffix string
 
 func loadCommandLineInputs() {
 	flag.IntVar(&numOfServers, "n", 5, "# of servers")
-	flag.IntVar(&faults, "f", 3, "# of faults tolerated")
+	flag.IntVar(&faults, "f", 3, "# of faults tolerated") // n= 10 f=10%n+1 -> 2; f=20%n+1 -> 3
 	flag.IntVar(&batchsize, "b", 10000, "batch size")
 	flag.IntVar(&myServerID, "id", 0, "this server ID")
 	flag.StringVar(&configPath, "path", "./config/cluster_localhost.conf", "config file path")

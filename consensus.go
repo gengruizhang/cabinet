@@ -6,7 +6,7 @@ import (
 )
 
 func startSyncCabInstance() {
-	leaderPrioClock := 0
+	leaderPClock := 0
 	//pm := cabservice.NewPrioMgr(1, 1)
 	mongoDBQueries, err := mongodb.ReadQueryFromFile(mongodb.DataPath + "run_workload" + mongoLoadType + ".dat")
 	if err != nil {
@@ -23,21 +23,20 @@ func startSyncCabInstance() {
 		startTime := time.Now()
 
 		// 1. get priority
-		fpriorities := pManager.GetFollowerPriorities(leaderPrioClock)
-		log.Infof("pClock: %v | priorities: %+v", leaderPrioClock, fpriorities)
+		fpriorities := pManager.GetFollowerPriorities(leaderPClock)
+		log.Infof("pClock: %v | priorities: %+v", leaderPClock, fpriorities)
 
 		// 2. broadcast rpcs
 		switch evalType {
 		case PlainMsg:
-			issuePlainMsgOps(leaderPrioClock, fpriorities, serviceMethod, receiver)
+			issuePlainMsgOps(leaderPClock, fpriorities, serviceMethod, receiver)
 		case TPCC:
 
 		case MongoDB:
-			perfM.RecordStarter(leaderPrioClock)
+			perfM.RecordStarter(leaderPClock)
 
-			if issueMongoDBOps(leaderPrioClock, fpriorities, serviceMethod, receiver, mongoDBQueries) {
-				err := perfM.SaveToFile()
-				if err != nil {
+			if issueMongoDBOps(leaderPClock, fpriorities, serviceMethod, receiver, mongoDBQueries) {
+				if err := perfM.SaveToFile(); err != nil {
 					log.Errorf("perfM save to file failed | err: %v", err)
 				}
 				return
@@ -51,34 +50,33 @@ func startSyncCabInstance() {
 		for rinfo := range receiver {
 
 			prioQueue <- rinfo.SID
-			log.Infof("recv pClock: %v | serverID: %v", leaderPrioClock, rinfo.SID)
+			log.Infof("recv pClock: %v | serverID: %v", leaderPClock, rinfo.SID)
 
-			fpriorities := pManager.GetFollowerPriorities(leaderPrioClock)
+			fpriorities := pManager.GetFollowerPriorities(leaderPClock)
 
 			prioSum += fpriorities[rinfo.SID]
 
 			if prioSum > mypriority.Majority {
-				err := perfM.RecordFinisher(leaderPrioClock)
-				if err != nil {
+				if err := perfM.RecordFinisher(leaderPClock); err != nil {
 					log.Errorf("PerfMeter failed | err: %v", err)
 					return
 				}
 
-				timeElapsed := time.Now().Sub(startTime)
 				mystate.AddCommitIndex(batchsize)
 
 				log.Infof("consensus reached | insID: %v | total time elapsed: %v | cmtIndex: %v",
-					leaderPrioClock, timeElapsed.String(), mystate.GetCommitIndex())
+					leaderPClock, time.Now().Sub(startTime).Milliseconds(), mystate.GetCommitIndex())
 				break
 			}
 		}
 
-		leaderPrioClock++
-		err := pManager.UpdateFollowerPriorities(leaderPrioClock, prioQueue, mystate.GetLeaderID())
+		leaderPClock++
+		err := pManager.UpdateFollowerPriorities(leaderPClock, prioQueue, mystate.GetLeaderID())
 		if err != nil {
 			log.Errorf("UpdateFollowerPriorities failed | err: %v", err)
+			return
 		}
-		log.Infof("prio updated for pClock %v", leaderPrioClock)
+		log.Infof("prio updated for pClock %v", leaderPClock)
 	}
 }
 
@@ -107,6 +105,8 @@ func issueMongoDBOps(pClock prioClock, p map[serverID]priority, method string, r
 	conns.RLock()
 	defer conns.RUnlock()
 
+	// [|0 ,1, 2 | -> first round
+	//, 3 , 4, 5 ] -> second round
 	left := pClock * batchsize
 	right := (pClock+1)*batchsize - 1
 	if right > len(allQueries) {
