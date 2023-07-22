@@ -33,6 +33,8 @@ var evalType int
 var batchsize int
 var msgsize int
 
+var ratioTryStep float64
+
 var enablePriority bool
 
 // Mongo DB input parameters
@@ -56,6 +58,8 @@ func loadCommandLineInputs() {
 	flag.StringVar(&logLevel, "log", "debug", "trace, debug, info, warn, error, fatal, panic")
 	flag.IntVar(&mode, "mode", 0, "0 -> localhost; 1 -> distributed")
 	flag.IntVar(&evalType, "et", 2, "0 -> plain msg; 1 -> tpcc; 2 -> mongodb")
+
+	flag.Float64Var(&ratioTryStep, "rstep", 0.001, "rate for trying qualified ratio")
 
 	flag.BoolVar(&enablePriority, "ep", true, "true -> cabinet; false -> raft")
 

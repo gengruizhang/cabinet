@@ -20,14 +20,14 @@ type PriorityManager struct {
 	f        int
 }
 
-func (pm *PriorityManager) Init(numOfServers, numOfFaults, baseOfPriorities int, isCab bool) {
+func (pm *PriorityManager) Init(numOfServers, numOfFaults, baseOfPriorities int, ratioTryStep float64, isCab bool) {
 	pm.n = numOfServers
 	pm.f = numOfFaults
 	pm.m = make(map[prioClock]map[serverID]priority)
 
 	ratio := 1.0
 	if isCab {
-		ratio = calcInitPrioRatio(numOfServers, numOfFaults)
+		ratio = calcInitPrioRatio(numOfServers, numOfFaults, ratioTryStep)
 	}
 	fmt.Println("ratio: ", ratio)
 
@@ -57,13 +57,13 @@ func reverseSlice(slice []priority) {
 	}
 }
 
-func calcInitPrioRatio(n, f int) (ratio float64) {
+func calcInitPrioRatio(n, f int, ratioTryStep float64) (ratio float64) {
 	r := 2.0 // initial guess
 	for {
-		if math.Pow(r, float64(n-f)) > 0.5*(math.Pow(r, float64(n))+1) && 0.5*(math.Pow(r, float64(n))+1) > math.Pow(r, float64(n-f-1)) {
+		if math.Pow(r, float64(n-f+1)) > 0.5*(math.Pow(r, float64(n))+1) && 0.5*(math.Pow(r, float64(n))+1) > math.Pow(r, float64(n-f)) {
 			return r
 		} else {
-			r -= 0.01
+			r -= ratioTryStep
 		}
 	}
 }

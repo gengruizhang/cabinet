@@ -5,9 +5,9 @@ import (
 )
 
 func TestInit(t *testing.T) {
-	n, f, b := 10, 2, 1
+	n, f, b := 10, 4, 1
 	var p PriorityManager
-	p.Init(n, f, b, true)
+	p.Init(n, f, b, 0.001, true)
 
 	scheme := p.scheme
 	majority := p.majority
@@ -32,7 +32,7 @@ func TestUpdateFollowerPriorities(t *testing.T) {
 	n, f, b := 10, 4, 1
 	leaderID := 0
 	var p PriorityManager
-	p.Init(n, f, b, true)
+	p.Init(n, f, b, 0.001, true)
 	t.Logf("scheme: %+v\n", p.scheme)
 
 	pC1 := 1

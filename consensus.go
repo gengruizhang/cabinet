@@ -5,8 +5,8 @@ import (
 	"cabinet/mongodb"
 	"cabinet/tpcc"
 	"math"
-	"strconv"
 	"math/rand"
+	"strconv"
 	"time"
 )
 
@@ -24,7 +24,7 @@ func startSyncCabInstance() {
 	if err != nil {
 		log.Errorf("error during transactions preparation | err: %v", err)
 	}
-  
+
 	// prepare crash list
 	crashList := prepCrashList()
 
@@ -35,7 +35,7 @@ func startSyncCabInstance() {
 		receiver := make(chan ReplyInfo, numOfServers)
 
 		// crash tests
-		if leaderPrioClock == crashTime && crashMode != 0 {
+		if leaderPClock == crashTime && crashMode != 0 {
 			conns.Lock()
 			for _, sID := range crashList {
 				delete(conns.m, sID)
@@ -54,7 +54,7 @@ func startSyncCabInstance() {
 		case PlainMsg:
 			issuePlainMsgOps(leaderPClock, fpriorities, serviceMethod, receiver)
 		case TPCC:
-			perfM.RecordStarter(leaderPrioClock)
+			perfM.RecordStarter(leaderPClock)
 			//transactions, seeds, err := tpcc.PrepareArgs(tpcc.TpccConfig)
 			//if err != nil {
 			//	log.Errorf("error during transactions preparation | err: %v", err)
@@ -64,7 +64,7 @@ func startSyncCabInstance() {
 			//	Transactions: transactions,
 			//	Seeds:        seeds,
 			//}
-			if issueTPCCOps(leaderPrioClock, fpriorities, serviceMethod, receiver, allArgs) {
+			if issueTPCCOps(leaderPClock, fpriorities, serviceMethod, receiver, allArgs) {
 				err := perfM.SaveToFileTpcc()
 				if err != nil {
 					log.Errorf("perfM save to file failed | err: %v", err)
@@ -104,10 +104,9 @@ func startSyncCabInstance() {
 					return
 				}
 
-
 				//If we run TPCC, keep the execution metrics
 				if len(rinfo.Recv.TpccMetrics) != 0 {
-					RecordTpccMetrics(&perfM, rinfo, leaderPrioClock, followersResults)
+					RecordTpccMetrics(&perfM, rinfo, leaderPClock, followersResults)
 				}
 
 				mystate.AddCommitIndex(batchsize)
