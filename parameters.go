@@ -1,6 +1,14 @@
 package main
 
-import "flag"
+import (
+	"cabinet/tpcc"
+	"cabinet/tpcc/measurement"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"io/ioutil"
+	"time"
+)
 
 const (
 	Localhost = iota
@@ -59,6 +67,13 @@ func loadCommandLineInputs() {
 	flag.IntVar(&mongoClientNum, "mcli", 16, "# of mongodb clients")
 
 	// TPC-C input parameters
+	flag.StringVar(&tpcc.TpccConfig.Action, "action", "", "Action of TPCC benchmark")
+	flag.IntVar(&tpcc.TpccConfig.Threads, "threads", 16, "Thread concurrency")
+	flag.DurationVar(&tpcc.TpccConfig.OutputInterval, "interval", 10*time.Second, "Output interval time")
+	flag.DurationVar(&tpcc.TpccConfig.PrepareRetryInterval, "retry-interval", 10*time.Second, "The interval for each retry")
+	flag.DurationVar(&tpcc.TpccConfig.MaxMeasureLatency, "max-measure-latency", measurement.DefaultMaxLatency, "max measure latency in millisecond")
+	flag.DurationVar(&tpcc.TpccConfig.TotalTime, "time", 1<<63-1, "Total execution time")
+	tpcc.TpccConfig.Targets = append(tpcc.TpccConfig.Targets, "")
 
 	// crash test parameters
 	flag.IntVar(&crashTime, "ct", 20, "# of rounds before crash")
@@ -70,4 +85,20 @@ func loadCommandLineInputs() {
 	flag.Parse()
 
 	log.Debugf("CommandLine parameters:\n - numOfServers:%v\n - myServerID:%v\n", numOfServers, myServerID)
+}
+
+func readTpccConfig() {
+	// Read the configuration file
+	data, err := ioutil.ReadFile("tpccConfig.json")
+	if err != nil {
+		fmt.Println("Error reading config file:", err)
+		return
+	}
+
+	// Unmarshal the JSON data into the config struct
+	err = json.Unmarshal(data, &tpcc.TpccConfig)
+	if err != nil {
+		fmt.Println("Error unmarshaling config:", err)
+		return
+	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"cabinet/config"
 	"cabinet/mongodb"
+	"cabinet/tpcc"
 	"encoding/gob"
 	"net"
 	"net/rpc"
@@ -41,6 +42,7 @@ func runFollower() {
 	case PlainMsg:
 		// nothing needs to be done
 	case TPCC:
+		go TPCCCleanUp()
 		initTPCC()
 	case MongoDB:
 		go mongoDBCleanUp()
@@ -71,7 +73,33 @@ func runFollower() {
 }
 
 func initTPCC() {
+	gob.Register(tpcc.NewOrderTxn{})
+	gob.Register(tpcc.PaymentTxn{})
+	gob.Register(tpcc.StockLevelTxn{})
+	gob.Register(tpcc.OrderStatusTxn{})
+	gob.Register(tpcc.DeliveryTxn{})
+	gob.Register(tpcc.TpccState{})
+	readTpccConfig()
+	tpccFollower = tpcc.NewTpccFollower(tpcc.TpccConfig)
+	//tpcc.OpenDB(tpcc.TpccConfig)
 
+	log.Debugf("TPCC initialization done")
+}
+
+func TPCCCleanUp() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		log.Debugf("clean up TPCC follower")
+		err := tpccFollower.CloseConnections()
+		if err != nil {
+			log.Errorf("clean up TPCC follower failed | err: %v", err)
+			return
+		}
+		log.Infof("clean up TPCC follower succeeded")
+		os.Exit(1)
+	}()
 }
 
 func initMongoDB() {

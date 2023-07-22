@@ -1,7 +1,11 @@
 package main
 
 import (
+	"cabinet/eval"
 	"cabinet/mongodb"
+	"cabinet/tpcc"
+	"math"
+	"strconv"
 	"math/rand"
 	"time"
 )
@@ -15,6 +19,12 @@ func startSyncCabInstance() {
 		return
 	}
 
+	executionRounds := int(math.Floor(float64(tpcc.TpccConfig.TotalCount) / float64(batchsize)))
+	allArgs, err := registerTPCCTxns(executionRounds)
+	if err != nil {
+		log.Errorf("error during transactions preparation | err: %v", err)
+	}
+  
 	// prepare crash list
 	crashList := prepCrashList()
 
@@ -44,7 +54,23 @@ func startSyncCabInstance() {
 		case PlainMsg:
 			issuePlainMsgOps(leaderPClock, fpriorities, serviceMethod, receiver)
 		case TPCC:
-
+			perfM.RecordStarter(leaderPrioClock)
+			//transactions, seeds, err := tpcc.PrepareArgs(tpcc.TpccConfig)
+			//if err != nil {
+			//	log.Errorf("error during transactions preparation | err: %v", err)
+			//}
+			//args := tpcc.TpccArgs{
+			//	TpccConfig:   tpcc.TpccConfig,
+			//	Transactions: transactions,
+			//	Seeds:        seeds,
+			//}
+			if issueTPCCOps(leaderPrioClock, fpriorities, serviceMethod, receiver, allArgs) {
+				err := perfM.SaveToFileTpcc()
+				if err != nil {
+					log.Errorf("perfM save to file failed | err: %v", err)
+				}
+				return
+			}
 		case MongoDB:
 			perfM.RecordStarter(leaderPClock)
 
@@ -59,6 +85,7 @@ func startSyncCabInstance() {
 		// 3. waiting for results
 		prioSum := mypriority.PrioVal
 		prioQueue := make(chan serverID, numOfServers)
+		var followersResults []ReplyInfo
 
 		for rinfo := range receiver {
 
@@ -69,10 +96,18 @@ func startSyncCabInstance() {
 
 			prioSum += fpriorities[rinfo.SID]
 
+			followersResults = append(followersResults, rinfo)
+
 			if prioSum > mypriority.Majority {
 				if err := perfM.RecordFinisher(leaderPClock); err != nil {
 					log.Errorf("PerfMeter failed | err: %v", err)
 					return
+				}
+
+
+				//If we run TPCC, keep the execution metrics
+				if len(rinfo.Recv.TpccMetrics) != 0 {
+					RecordTpccMetrics(&perfM, rinfo, leaderPrioClock, followersResults)
 				}
 
 				mystate.AddCommitIndex(batchsize)
@@ -114,6 +149,80 @@ func issuePlainMsgOps(pClock prioClock, p map[serverID]priority, method string, 
 	}
 }
 
+func issueTPCCOps(pClock prioClock, p map[serverID]priority, method string, r chan ReplyInfo, allArgs []tpcc.TpccArgs) (allDone bool) {
+	conns.RLock()
+	defer conns.RUnlock()
+
+	if pClock >= len(allArgs) {
+		log.Infof("TPCC evaluation finished")
+		allDone = true
+		return
+	}
+
+	for _, conn := range conns.m {
+		args := &Args{
+			PrioClock: pClock,
+			PrioVal:   p[conn.serverID],
+			Type:      TPCC,
+			CmdTPCC:   allArgs[pClock],
+		}
+
+		go executeRPC(conn, method, args, r)
+
+	}
+
+	return
+}
+
+func registerTPCCTxns(executionRounds int) (allArgs []tpcc.TpccArgs, err error) {
+
+	var transactions map[int][]interface{}
+	var seeds map[int]int64
+
+	for i := 0; i < executionRounds; i++ {
+		if i == executionRounds-1 {
+			txnLeft := tpcc.TpccConfig.TotalCount - i*batchsize
+			transactions, seeds, err = tpcc.PrepareArgs(tpcc.TpccConfig, txnLeft)
+		} else {
+			transactions, seeds, err = tpcc.PrepareArgs(tpcc.TpccConfig, batchsize)
+		}
+
+		if err != nil {
+			log.Errorf("error during transactions preparation | err: %v", err)
+		}
+		args := tpcc.TpccArgs{
+			TpccConfig:   tpcc.TpccConfig,
+			Transactions: transactions,
+			Seeds:        seeds,
+		}
+		allArgs = append(allArgs, args)
+	}
+
+	return allArgs, err
+
+}
+
+func RecordTpccMetrics(m *eval.PerfMeter, lastReply ReplyInfo, pClock prioClock, followersResults []ReplyInfo) {
+
+	for j := 0; j < 5; j++ {
+
+		//txnMetric -> transaction metrics of last response
+		txnMetric := lastReply.Recv.TpccMetrics[j]
+		avgTPM := 0.0
+		avgExecLat := 0.0
+		for _, res := range followersResults {
+			tpm, _ := strconv.ParseFloat(res.Recv.TpccMetrics[j]["TPM"], 64)
+			lat, _ := strconv.ParseFloat(res.Recv.TpccMetrics[j]["Avg(ms)"], 64)
+			avgTPM += tpm
+			avgExecLat += lat
+		}
+		avgTPM = avgTPM / float64(len(followersResults))
+		avgExecLat = avgExecLat / float64(len(followersResults))
+		m.RecordTpccTxnMetrics(pClock, txnMetric, avgTPM, avgExecLat)
+	}
+
+}
+
 func issueMongoDBOps(pClock prioClock, p map[serverID]priority, method string, r chan ReplyInfo, allQueries []mongodb.Query) (allDone bool) {
 	conns.RLock()
 	defer conns.RUnlock()
@@ -140,10 +249,6 @@ func issueMongoDBOps(pClock prioClock, p map[serverID]priority, method string, r
 	}
 
 	return
-}
-
-func issueTPCCOps() {
-
 }
 
 func prepCrashList() (crashList []int) {

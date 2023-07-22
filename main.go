@@ -4,6 +4,7 @@ import (
 	"cabinet/eval"
 	"cabinet/mongodb"
 	"cabinet/smr"
+	"cabinet/tpcc"
 	"fmt"
 
 	"github.com/sirupsen/logrus"
@@ -19,6 +20,9 @@ var perfM eval.PerfMeter
 
 // Mongo DB variables
 var mongoDbFollower *mongodb.MongoFollower
+
+// TPCC variables
+var tpccFollower *tpcc.TPCCFollower
 
 // Create Cabinet alias
 type serverID = int
@@ -48,11 +52,11 @@ func main() {
 	fmt.Printf("majority: %v\n", mypriority.Majority)
 
 	if myServerID == 0 {
-		mypriority.PrioVal = pscheme[0] // leader has the highest priority
+		mypriority.PrioVal = pscheme[0]
+		readTpccConfig() // leader has the highest priority
 		establishRPCs()
 		startSyncCabInstance()
 	} else {
 		runFollower()
-		// tpccDependency()
 	}
 }

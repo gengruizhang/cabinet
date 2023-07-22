@@ -2,6 +2,7 @@ package main
 
 import (
 	"cabinet/mongodb"
+	"cabinet/tpcc"
 	"errors"
 	"os/exec"
 	"time"
@@ -18,9 +19,9 @@ type Args struct {
 	PrioVal   float64
 	CmdPlain  [][]byte
 	CmdMongo  []mongodb.Query
-	// CmdTPCC  []string
-	CmdPy []string
-	Type  int
+	CmdTPCC   tpcc.TpccArgs
+	CmdPy     []string
+	Type      int
 }
 
 type ReplyInfo struct {
@@ -34,9 +35,10 @@ type Reply struct {
 	// ServerID  int
 	// PrioClock int
 
-	Result   int
-	ExeTime  string
-	ErrorMsg error
+	Result      int
+	ExeTime     string
+	ErrorMsg    error
+	TpccMetrics []map[string]string
 }
 
 func (s *CabService) ConsensusService(args *Args, reply *Reply) error {
@@ -97,9 +99,13 @@ func conJobPythonScript(args *Args, reply *Reply) (err error) {
 
 func conJobTPCC(args *Args, reply *Reply) (err error) {
 
-	// do TPCC work
-	// michalis ...
-	err = errors.New("waiting for implementation")
+	log.Debugf("Server %d is executing PClock %d", myServerID, args.PrioClock)
+	start := time.Now()
+	metrics := make([]map[string]string, 0, 6)
+	tpccFollower.TpccService(args.CmdTPCC, &metrics)
+	//tpcc.TpccService(args.CmdTPCC)
+	reply.ExeTime = time.Now().Sub(start).String()
+	reply.TpccMetrics = metrics
 	return
 }
 
