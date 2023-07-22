@@ -39,12 +39,16 @@ var enablePriority bool
 var mongoLoadType string
 var mongoClientNum int
 
+// crash test parameters
+var crashTime int
+var crashMode int
+
 // suffix of files
 var suffix string
 
 func loadCommandLineInputs() {
 	flag.IntVar(&numOfServers, "n", 5, "# of servers")
-	flag.IntVar(&faults, "f", 3, "# of faults tolerated")
+	flag.IntVar(&faults, "f", 3, "# of faults tolerated") // n= 10 f=10%n+1 -> 2; f=20%n+1 -> 3
 	flag.IntVar(&batchsize, "b", 10000, "batch size")
 	flag.IntVar(&myServerID, "id", 0, "this server ID")
 	flag.StringVar(&configPath, "path", "./config/cluster_localhost.conf", "config file path")
@@ -71,12 +75,16 @@ func loadCommandLineInputs() {
 	flag.DurationVar(&tpcc.TpccConfig.TotalTime, "time", 1<<63-1, "Total execution time")
 	tpcc.TpccConfig.Targets = append(tpcc.TpccConfig.Targets, "")
 
+	// crash test parameters
+	flag.IntVar(&crashTime, "ct", 20, "# of rounds before crash")
+	flag.IntVar(&crashMode, "cm", 0, "0 -> no crash; 1 -> strong machines; 2 -> weak machines; 3 -> random machines")
+
 	// suffix of files
 	flag.StringVar(&suffix, "suffix", "xxx", "suffix of files")
 
 	flag.Parse()
 
-	log.Infof("CommandLine parameters:\n - numOfServers:%v\n - myServerID:%v\n", numOfServers, myServerID)
+	log.Debugf("CommandLine parameters:\n - numOfServers:%v\n - myServerID:%v\n", numOfServers, myServerID)
 }
 
 func readTpccConfig() {

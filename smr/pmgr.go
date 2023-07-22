@@ -60,10 +60,10 @@ func reverseSlice(slice []priority) {
 func calcInitPrioRatio(n, f int) (ratio float64) {
 	r := 2.0 // initial guess
 	for {
-		if math.Pow(r, float64(n-f+1)) > 0.5*(math.Pow(r, float64(n))+1) && 0.5*(math.Pow(r, float64(n))+1) > math.Pow(r, float64(n-f)) {
+		if math.Pow(r, float64(n-f)) > 0.5*(math.Pow(r, float64(n))+1) && 0.5*(math.Pow(r, float64(n))+1) > math.Pow(r, float64(n-f-1)) {
 			return r
 		} else {
-			r -= 0.0001
+			r -= 0.01
 		}
 	}
 }

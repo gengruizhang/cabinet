@@ -5,7 +5,7 @@ import (
 )
 
 func TestInit(t *testing.T) {
-	n, f, b := 10, 4, 1
+	n, f, b := 10, 2, 1
 	var p PriorityManager
 	p.Init(n, f, b, true)
 

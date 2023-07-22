@@ -117,6 +117,12 @@ func initMongoDB() {
 		return
 	}
 
+	err = mongoDbFollower.ClearTable("usertable")
+	if err != nil {
+		log.Errorf("clean up table failed | err: %v", err)
+		return
+	}
+
 	log.Debugf("loading data to Mongo DB")
 	_, _, err = mongoDbFollower.FollowerAPI(queriesToLoad)
 	if err != nil {
@@ -124,7 +130,7 @@ func initMongoDB() {
 		return
 	}
 
-	log.Debugf("mongo DB initialization done")
+	log.Infof("mongo DB initialization done")
 }
 
 // mongoDBCleanUp cleans up client connections to DB upon ctrl+C

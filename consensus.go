@@ -6,11 +6,12 @@ import (
 	"cabinet/tpcc"
 	"math"
 	"strconv"
+	"math/rand"
 	"time"
 )
 
 func startSyncCabInstance() {
-	leaderPrioClock := 0
+	leaderPClock := 0
 	//pm := cabservice.NewPrioMgr(1, 1)
 	mongoDBQueries, err := mongodb.ReadQueryFromFile(mongodb.DataPath + "run_workload" + mongoLoadType + ".dat")
 	if err != nil {
@@ -23,6 +24,9 @@ func startSyncCabInstance() {
 	if err != nil {
 		log.Errorf("error during transactions preparation | err: %v", err)
 	}
+  
+	// prepare crash list
+	crashList := prepCrashList()
 
 	for {
 
@@ -30,16 +34,25 @@ func startSyncCabInstance() {
 
 		receiver := make(chan ReplyInfo, numOfServers)
 
+		// crash tests
+		if leaderPrioClock == crashTime && crashMode != 0 {
+			conns.Lock()
+			for _, sID := range crashList {
+				delete(conns.m, sID)
+			}
+			conns.Unlock()
+		}
+
 		startTime := time.Now()
 
 		// 1. get priority
-		fpriorities := pManager.GetFollowerPriorities(leaderPrioClock)
-		log.Infof("pClock: %v | priorities: %+v", leaderPrioClock, fpriorities)
+		fpriorities := pManager.GetFollowerPriorities(leaderPClock)
+		log.Infof("pClock: %v | priorities: %+v", leaderPClock, fpriorities)
 
 		// 2. broadcast rpcs
 		switch evalType {
 		case PlainMsg:
-			issuePlainMsgOps(leaderPrioClock, fpriorities, serviceMethod, receiver)
+			issuePlainMsgOps(leaderPClock, fpriorities, serviceMethod, receiver)
 		case TPCC:
 			perfM.RecordStarter(leaderPrioClock)
 			//transactions, seeds, err := tpcc.PrepareArgs(tpcc.TpccConfig)
@@ -59,11 +72,10 @@ func startSyncCabInstance() {
 				return
 			}
 		case MongoDB:
-			perfM.RecordStarter(leaderPrioClock)
+			perfM.RecordStarter(leaderPClock)
 
-			if issueMongoDBOps(leaderPrioClock, fpriorities, serviceMethod, receiver, mongoDBQueries) {
-				err := perfM.SaveToFile()
-				if err != nil {
+			if issueMongoDBOps(leaderPClock, fpriorities, serviceMethod, receiver, mongoDBQueries) {
+				if err := perfM.SaveToFile(); err != nil {
 					log.Errorf("perfM save to file failed | err: %v", err)
 				}
 				return
@@ -78,41 +90,41 @@ func startSyncCabInstance() {
 		for rinfo := range receiver {
 
 			prioQueue <- rinfo.SID
-			log.Infof("recv pClock: %v | serverID: %v", leaderPrioClock, rinfo.SID)
+			log.Infof("recv pClock: %v | serverID: %v", leaderPClock, rinfo.SID)
 
-			fpriorities := pManager.GetFollowerPriorities(leaderPrioClock)
+			fpriorities := pManager.GetFollowerPriorities(leaderPClock)
 
 			prioSum += fpriorities[rinfo.SID]
 
 			followersResults = append(followersResults, rinfo)
 
 			if prioSum > mypriority.Majority {
-				err := perfM.RecordFinisher(leaderPrioClock)
-				if err != nil {
+				if err := perfM.RecordFinisher(leaderPClock); err != nil {
 					log.Errorf("PerfMeter failed | err: %v", err)
 					return
 				}
+
 
 				//If we run TPCC, keep the execution metrics
 				if len(rinfo.Recv.TpccMetrics) != 0 {
 					RecordTpccMetrics(&perfM, rinfo, leaderPrioClock, followersResults)
 				}
 
-				timeElapsed := time.Now().Sub(startTime)
 				mystate.AddCommitIndex(batchsize)
 
 				log.Infof("consensus reached | insID: %v | total time elapsed: %v | cmtIndex: %v",
-					leaderPrioClock, timeElapsed.String(), mystate.GetCommitIndex())
+					leaderPClock, time.Now().Sub(startTime).Milliseconds(), mystate.GetCommitIndex())
 				break
 			}
 		}
 
-		leaderPrioClock++
-		err := pManager.UpdateFollowerPriorities(leaderPrioClock, prioQueue, mystate.GetLeaderID())
+		leaderPClock++
+		err := pManager.UpdateFollowerPriorities(leaderPClock, prioQueue, mystate.GetLeaderID())
 		if err != nil {
 			log.Errorf("UpdateFollowerPriorities failed | err: %v", err)
+			return
 		}
-		log.Infof("prio updated for pClock %v", leaderPrioClock)
+		log.Infof("prio updated for pClock %v", leaderPClock)
 	}
 }
 
@@ -215,6 +227,8 @@ func issueMongoDBOps(pClock prioClock, p map[serverID]priority, method string, r
 	conns.RLock()
 	defer conns.RUnlock()
 
+	// [|0 ,1, 2 | -> first round
+	//, 3 , 4, 5 ] -> second round
 	left := pClock * batchsize
 	right := (pClock+1)*batchsize - 1
 	if right > len(allQueries) {
@@ -232,6 +246,57 @@ func issueMongoDBOps(pClock prioClock, p map[serverID]priority, method string, r
 		}
 
 		go executeRPC(conn, method, args, r)
+	}
+
+	return
+}
+
+func prepCrashList() (crashList []int) {
+	switch crashMode {
+	case 0:
+		break
+	case 1:
+		for i := 1; i < faults; i++ {
+			crashList = append(crashList, i)
+		}
+	case 2:
+		for i := 1; i < faults; i++ {
+			crashList = append(crashList, numOfServers-i)
+		}
+	case 3:
+		// // evenly distributed
+		// for i := 0; i < 5; i++ {
+		// 	for j := 1; j <= (faults-1) / 5; j++ {
+		// 		crashList = append(crashList, i*(numOfServers/5) + j)
+		// 	}
+		// }
+
+		// randomly distributed
+		rand.Seed(time.Now().UnixNano())
+
+		for i := 1; i < faults; i++ {
+			contains := false
+			for {
+				crashID := rand.Intn(numOfServers-1) + 1
+
+				for _, cID := range crashList {
+					if cID == crashID {
+						contains = true
+						break
+					}
+				}
+
+				if contains {
+					contains = false
+					continue
+				} else {
+					crashList = append(crashList, crashID)
+					break
+				}
+			}
+		}
+	default:
+		break
 	}
 
 	return

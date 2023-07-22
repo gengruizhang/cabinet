@@ -48,7 +48,7 @@ func NewMongoFollower(clientTNum int, queryTNum int, dbID int) *MongoFollower {
 
 	// build MongoDB clients
 	uri := os.Getenv("MONGODB_URI")
-	log.Infof("mongodb url: %v", uri)
+	log.Debugf("mongodb url: %v", uri)
 	if uri == "" {
 		uri = "mongodb://localhost:27017/"
 		// log.Fatal("You must set your 'MONGODB_URI' environmental variable.
@@ -106,16 +106,16 @@ func (fl *MongoFollower) FollowerAPI(queries []Query) (
 	return result, latency, nil
 }
 
-func (fl *MongoFollower) clearTable(table string) (err error) {
+func (fl *MongoFollower) ClearTable(table string) (err error) {
 
-	deleteAll := Query{
-		Op:     DELETE,
+	dropTable := Query{
+		Op:     DROP,
 		Table:  table,
 		Key:    "",
 		Values: nil,
 	}
 
-	_, _, err = fl.FollowerAPI([]Query{deleteAll})
+	_, _, err = fl.FollowerAPI([]Query{dropTable})
 
 	if err != nil {
 		log.Errorf("clear table failed | err: %v")
@@ -163,7 +163,7 @@ func (fl *MongoFollower) PrintTable(table string) (err error) {
 }
 
 func (fl *MongoFollower) CleanUp() (err error) {
-	err = fl.clearTable("usertable")
+	err = fl.ClearTable("usertable")
 	if err != nil {
 		log.Errorf("clean up table failed | err: %v", err)
 		return
@@ -272,6 +272,9 @@ func queryHandler(db *mongo.Database, query Query) (opRes []map[string]string, e
 	case DELETE:
 		dbDelete(db, query.Table, query.Key)
 		opRes = append(opRes, map[string]string{"DELETE": "done"})
+	case DROP:
+		dbDrop(db, query.Table)
+		opRes = append(opRes, map[string]string{"DROP": "done"})
 	default:
 		return nil, fmt.Errorf("Unexpected operator: %s\n", strconv.Itoa(query.Op))
 	}

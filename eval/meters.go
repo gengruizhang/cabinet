@@ -147,8 +147,10 @@ func (m *PerfMeter) SaveToFile() error {
 		return errors.New("counter is 0")
 	}
 
-	avgLatency := float64(latSum / int64(counter))
-	avgThroughput := float64(m.batchSize*counter) / time.Now().Sub(m.meters[keys[0]].StartTime).Seconds()
+	avgLatency := float64(latSum) / float64(counter)
+	lastTime := m.meters[keys[len(keys)-1]]
+	lastEndTime := lastTime.StartTime.Add(time.Duration(time.Duration(lastTime.TimeElapsed).Seconds()))
+	avgThroughput := float64(m.batchSize*counter) / lastEndTime.Sub(m.meters[keys[0]].StartTime).Seconds()
 
 	err = writer.Write([]string{"-1", strconv.FormatFloat(avgLatency, 'f', 3, 64), strconv.FormatFloat(avgThroughput, 'f', 3, 64)})
 	if err != nil {
