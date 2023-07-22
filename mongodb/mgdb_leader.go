@@ -20,6 +20,7 @@ const (
 	UPDATE
 	SCAN
 	DELETE
+	DROP
 )
 
 func lineToQuery(ln string, query *Query) error {
