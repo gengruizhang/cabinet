@@ -31,7 +31,7 @@ type ServerDock struct {
 }
 
 func runFollower() {
-	serverConfig := config.Parser(numOfServers, configPath)
+	serverConfig := config.ParseClusterConfig(numOfServers, configPath)
 	ipIndex := config.ServerIP
 	rpcPortIndex := config.ServerRPCListenerPort
 

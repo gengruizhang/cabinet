@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cabinet/config"
 	"cabinet/eval"
 	"cabinet/mongodb"
 	"cabinet/tpcc"
@@ -13,20 +14,38 @@ import (
 func startSyncCabInstance() {
 	leaderPClock := 0
 	//pm := cabservice.NewPrioMgr(1, 1)
-	mongoDBQueries, err := mongodb.ReadQueryFromFile(mongodb.DataPath + "run_workload" + mongoLoadType + ".dat")
-	if err != nil {
-		log.Errorf("ReadQueryFromFile failed | err: %v", err)
-		return
+	var mongoDBQueries []mongodb.Query
+
+	if evalType == MongoDB {
+		var err error
+		mongoDBQueries, err = mongodb.ReadQueryFromFile(mongodb.DataPath + "run_workload" + mongoLoadType + ".dat")
+		if err != nil {
+			log.Errorf("ReadQueryFromFile failed | err: %v", err)
+			return
+		}
 	}
 
-	executionRounds := int(math.Floor(float64(tpcc.TpccConfig.TotalCount) / float64(batchsize)))
-	allArgs, err := registerTPCCTxns(executionRounds)
-	if err != nil {
-		log.Errorf("error during transactions preparation | err: %v", err)
+	var allArgs []tpcc.TpccArgs
+
+	if evalType == TPCC {
+		executionRounds := int(math.Floor(float64(tpcc.TpccConfig.TotalCount) / float64(batchsize)))
+		var err error
+		allArgs, err = registerTPCCTxns(executionRounds)
+		if err != nil {
+			log.Errorf("error during transactions preparation | err: %v", err)
+			return
+		}
 	}
 
 	// prepare crash list
 	crashList := prepCrashList()
+	log.Infof("crash list was successfully prepared.")
+
+	var possibleTs chan int
+	// get possible thresholds, which is stored in a channel
+	if dynamicT {
+		possibleTs = config.ParseThresholds("./config/possibleTs.conf")
+	}
 
 	for {
 
@@ -48,10 +67,23 @@ func startSyncCabInstance() {
 		// 1. get priority
 		fpriorities := pManager.GetFollowerPriorities(leaderPClock)
 		log.Infof("pClock: %v | priorities: %+v", leaderPClock, fpriorities)
+		log.Infof("pClock: %v | quorum size (t+1) is %v | majority: %v", leaderPClock, pManager.GetQuorumSize(), pManager.GetMajority())
+
+		log.Debugf("Testing priorities change under new thresholds")
+
+		// implementing dynamically changing thresholds
+		if dynamicT {
+			q := <-possibleTs
+			fpriorities = pManager.SetNewPrioritiesUnderNewT(numOfServers, q+1, 1, ratioTryStep, leaderPClock)
+
+			log.Infof("pClock: %v | NEW priorities: %+v", leaderPClock, fpriorities)
+			log.Infof("pClock: %v | NEW quorum size (t+1) is %v | majority: %v", leaderPClock, pManager.GetQuorumSize(), pManager.GetMajority())
+		}
 
 		// 2. broadcast rpcs
 		switch evalType {
 		case PlainMsg:
+			perfM.RecordStarter(leaderPClock)
 			issuePlainMsgOps(leaderPClock, fpriorities, serviceMethod, receiver)
 		case TPCC:
 			perfM.RecordStarter(leaderPClock)
@@ -255,17 +287,17 @@ func prepCrashList() (crashList []int) {
 	case 0:
 		break
 	case 1:
-		for i := 1; i < faults; i++ {
+		for i := 1; i < quorum; i++ {
 			crashList = append(crashList, i)
 		}
 	case 2:
-		for i := 1; i < faults; i++ {
+		for i := 1; i < quorum; i++ {
 			crashList = append(crashList, numOfServers-i)
 		}
 	case 3:
 		// // evenly distributed
 		// for i := 0; i < 5; i++ {
-		// 	for j := 1; j <= (faults-1) / 5; j++ {
+		// 	for j := 1; j <= (quorum-1) / 5; j++ {
 		// 		crashList = append(crashList, i*(numOfServers/5) + j)
 		// 	}
 		// }
@@ -273,7 +305,7 @@ func prepCrashList() (crashList []int) {
 		// randomly distributed
 		rand.Seed(time.Now().UnixNano())
 
-		for i := 1; i < faults; i++ {
+		for i := 1; i < quorum; i++ {
 			contains := false
 			for {
 				crashID := rand.Intn(numOfServers-1) + 1

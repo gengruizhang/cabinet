@@ -35,8 +35,7 @@ type Reply struct {
 	// ServerID  int
 	// PrioClock int
 
-	Result      int
-	ExeTime     string
+	ExeResult   string
 	ErrorMsg    error
 	TpccMetrics []map[string]string
 }
@@ -73,7 +72,7 @@ func conJobPlainMsg(args *Args, reply *Reply) (err error) {
 		log.Infof("pClock: %v | msg: %x", args.PrioClock, msg)
 	}
 
-	reply.ExeTime = time.Now().Sub(start).String()
+	reply.ExeResult = time.Now().Sub(start).String()
 	//reply.ServerID = myServerID
 	//reply.PrioClock = mypriority.PrioClock
 
@@ -91,7 +90,7 @@ func conJobPythonScript(args *Args, reply *Reply) (err error) {
 		return
 	}
 
-	reply.ExeTime = time.Now().Sub(start).String()
+	reply.ExeResult = time.Now().Sub(start).String()
 	//reply.ServerID = myServerID
 	//reply.PrioClock = mypriority.PrioClock
 	return
@@ -104,7 +103,7 @@ func conJobTPCC(args *Args, reply *Reply) (err error) {
 	metrics := make([]map[string]string, 0, 6)
 	tpccFollower.TpccService(args.CmdTPCC, &metrics)
 	//tpcc.TpccService(args.CmdTPCC)
-	reply.ExeTime = time.Now().Sub(start).String()
+	reply.ExeResult = time.Now().Sub(start).String()
 	reply.TpccMetrics = metrics
 	return
 }
@@ -127,7 +126,7 @@ func conJobMongoDB(args *Args, reply *Reply) (err error) {
 		return
 	}
 
-	reply.ExeTime = time.Since(start).String()
+	reply.ExeResult = time.Since(start).String()
 
 	// //fmt.Println("Average latency of Mongo DB queries: ", queryLatency)
 	// for i, queryRes := range queryResults {

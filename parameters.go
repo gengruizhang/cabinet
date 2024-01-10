@@ -22,7 +22,8 @@ const (
 )
 
 var numOfServers int
-var faults int
+var threshold int
+var quorum int
 var myServerID int
 var configPath string
 var production bool
@@ -34,8 +35,9 @@ var batchsize int
 var msgsize int
 
 var ratioTryStep float64
-
 var enablePriority bool
+
+var dynamicT bool
 
 // Mongo DB input parameters
 var mongoLoadType string
@@ -49,15 +51,21 @@ var crashMode int
 var suffix string
 
 func loadCommandLineInputs() {
-	flag.IntVar(&numOfServers, "n", 5, "# of servers")
-	flag.IntVar(&faults, "f", 3, "# of faults tolerated") // n= 10 f=10%n+1 -> 2; f=20%n+1 -> 3
-	flag.IntVar(&batchsize, "b", 10000, "batch size")
+	flag.IntVar(&numOfServers, "n", 10, "# of servers")
+
+	flag.IntVar(&threshold, "t", 1, "# of quorum tolerated")
+	// f = t + 1;
+	quorum = threshold + 1
+
+	flag.IntVar(&batchsize, "b", 1, "batch size")
 	flag.IntVar(&myServerID, "id", 0, "this server ID")
 	flag.StringVar(&configPath, "path", "./config/cluster_localhost.conf", "config file path")
 	flag.BoolVar(&production, "pd", false, "production mode?")
+	flag.BoolVar(&dynamicT, "dt", true, "changing Ts?")
+
 	flag.StringVar(&logLevel, "log", "debug", "trace, debug, info, warn, error, fatal, panic")
 	flag.IntVar(&mode, "mode", 0, "0 -> localhost; 1 -> distributed")
-	flag.IntVar(&evalType, "et", 2, "0 -> plain msg; 1 -> tpcc; 2 -> mongodb")
+	flag.IntVar(&evalType, "et", 0, "0 -> plain msg; 1 -> tpcc; 2 -> mongodb")
 
 	flag.Float64Var(&ratioTryStep, "rstep", 0.001, "rate for trying qualified ratio")
 

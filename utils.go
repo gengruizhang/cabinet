@@ -75,6 +75,6 @@ func genRandomBytes(length int) (randomBytes []byte) {
 		return
 	}
 
-	fmt.Printf("Random Bytes: %x\n", randomBytes)
+	//fmt.Printf("Random Bytes: %x\n", randomBytes)
 	return
 }

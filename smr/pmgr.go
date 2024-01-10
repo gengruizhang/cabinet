@@ -17,17 +17,17 @@ type PriorityManager struct {
 	scheme   []priority
 	majority float64
 	n        int
-	f        int
+	q        int
 }
 
-func (pm *PriorityManager) Init(numOfServers, numOfFaults, baseOfPriorities int, ratioTryStep float64, isCab bool) {
+func (pm *PriorityManager) Init(numOfServers, quorumSize, baseOfPriorities int, ratioTryStep float64, isCab bool) {
 	pm.n = numOfServers
-	pm.f = numOfFaults
+	pm.q = quorumSize // quorum size is t+1
 	pm.m = make(map[prioClock]map[serverID]priority)
 
 	ratio := 1.0
 	if isCab {
-		ratio = calcInitPrioRatio(numOfServers, numOfFaults, ratioTryStep)
+		ratio = calcInitPrioRatio(numOfServers, quorumSize, ratioTryStep)
 	}
 	fmt.Println("ratio: ", ratio)
 
@@ -45,6 +45,38 @@ func (pm *PriorityManager) Init(numOfServers, numOfFaults, baseOfPriorities int,
 
 	pm.Lock()
 	pm.m[0] = newPriorities
+	pm.Unlock()
+	return
+}
+
+func (pm *PriorityManager) SetNewPrioritiesUnderNewT(n, q, baseOfPriorities int, ratioTryStep float64, pClock prioClock) (newPriorities map[serverID]priority) {
+	pm.n = n
+	pm.q = q // quorum size is t+1
+	pm.m = make(map[prioClock]map[serverID]priority)
+
+	ratio := 1.0
+	ratio = calcInitPrioRatio(n, q, ratioTryStep)
+
+	fmt.Println("ratio: ", ratio)
+
+	newPriorities = make(map[serverID]priority)
+
+	// reset pm scheme
+	pm.scheme = []priority{}
+
+	for i := 0; i < n; i++ {
+		p := float64(baseOfPriorities) * math.Pow(ratio, float64(i))
+		newPriorities[n-1-i] = p
+		pm.scheme = append(pm.scheme, p)
+	}
+
+	fmt.Printf("pm.scheme length: %v\n", len(pm.scheme))
+	reverseSlice(pm.scheme)
+
+	pm.majority = sum(pm.scheme) / 2
+
+	pm.Lock()
+	pm.m[pClock] = newPriorities
 	pm.Unlock()
 	return
 }
@@ -139,5 +171,10 @@ func (pm *PriorityManager) GetMajority() (majority float64) {
 
 func (pm *PriorityManager) GetPriorityScheme() (scheme []priority) {
 	scheme = pm.scheme
+	return
+}
+
+func (pm *PriorityManager) GetQuorumSize() (q int) {
+	q = pm.q
 	return
 }

@@ -8,7 +8,7 @@ import (
 )
 
 func establishRPCs() {
-	serverConfig := config.Parser(numOfServers, configPath)
+	serverConfig := config.ParseClusterConfig(numOfServers, configPath)
 	id := config.ServerID
 	ip := config.ServerIP
 	portOfRPCListener := config.ServerRPCListenerPort
