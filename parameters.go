@@ -60,6 +60,8 @@ func loadCommandLineInputs() {
 	flag.IntVar(&batchsize, "b", 1, "batch size")
 	flag.IntVar(&myServerID, "id", 0, "this server ID")
 	flag.StringVar(&configPath, "path", "./config/cluster_localhost.conf", "config file path")
+
+	// Production mode stores log on disk at ./logs/
 	flag.BoolVar(&production, "pd", false, "production mode?")
 	flag.BoolVar(&dynamicT, "dt", true, "changing Ts?")
 

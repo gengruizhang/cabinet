@@ -34,9 +34,10 @@ Cabinet also proposes a benchmark framework tailored for distributed consensus a
 
 2. Download the code and go into the cabinet folder.
 3. Build this project by `go build ../cabinet`, run the generated bin file.
-4. Check out `parameters.go` for further parameters tuning.
-
+4. Run `./cabinet -h` to check out the parameters.
 
 ## Deployment
-1. Deployment details have been temporarily redacted to preserve the double-blind review process.
-2. Detailed artifact will be released after the review process.
+
+* The `.conf` file specifies serverID, IP, and port numbers.
+* Each server retrieves its IP and port using its serverID from `parameters.go`.
+* To test Cabinet locally, set localhost as the IP and use different port numbers.
