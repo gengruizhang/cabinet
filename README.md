@@ -1,6 +1,22 @@
-# Cabinet
+# Cabinet: Weighted Consensus Made Fast
 
-Cabinet is a novel consensus algorithm that introduces weighted consensus to achieve fast agreement. It allows customizable failure thresholds and assigns distinct weights to nodes. It dynamically adjusts weights based on node responsiveness, prioritizing faster nodes in the consensus process. The adaptive weight allocation maintains the system at optimal performance, especially in large-scale and heterogeneous systems where node responsiveness varies. 
+## Cabinet in a Nutshell
+Cabinet uses weighted consensus to achieve fast agreement. What sets it apart from Raft?
+1. **Smaller quorum sizes** enabled by weighted consensus
+2. **Customizable failure thresholds**, allowing the system to potentially tolerate more than half of the nodes failing.
+3. **Dynamically adjusted weights** based on node responsiveness, helping the system maintain optimal performance.
+
+
+## How Cabinet works?
+Traditional consensus algorithms (such as Paxos and Raft) use majority quorums, which implicitly makes every node's decision weigh 1.
+
+Cabinet assigns different weights to nodes, where a small group of fast nodes (i.e., cabinet members), can make a decision when their weights exceed the half of total weights, which reduces the size of the physical quorum.
+
+Below shows two examples.
+
+
+
+## Micobenchmark
 
 Cabinet also proposes a benchmark framework tailored for distributed consensus applications, with a special focus on leader-based consensus algorithms (e.g., the Paxos/Raft family). This framework introduces a set of versatile and adaptable interfaces that seamlessly integrate existing benchmarks. In this repository, YCSB and TPC-C are integrated into the benchmark framework.
 
