@@ -12,9 +12,18 @@ Traditional consensus algorithms (such as Paxos and Raft) use majority quorums, 
 
 Cabinet assigns different weights to nodes, where a small group of fast nodes (i.e., cabinet members), can make a decision when their weights exceed the half of total weights, which reduces the size of the physical quorum.
 
-Below shows two examples.
+### Example: 7-Node Cluster
+Below is a visualization of three configurations in a 7-node setup:
 
+![ex_cab.png](fig/ex_cab.png)
 
+- In **Raft**, all nodes are equal, each with an implicit weight of 1. A decision requires a majority (quorum size = 4). This setup tolerates 3 failures.
+
+- In **Cabinet (t=2)**, a weight scheme (12, 10, ..., 3, 2) allows  fast consensus where the top three weighted nodes (cabinet members) agree (quorum size = 3). It tolerates **a minimum of 2 node failures** (any two among n1, n2, and n3) and **a maximum of 4 node failures** (the 4 lowest-weighted ones).
+
+- In **Cabinet (t=1)**, a more skewed weight scheme (60, 30, ..., 3, 2) allows consensus when just the top two weighted nodes (cabinet members) agree (quorum size = 2). This set of weight scheme tolerates **a minimum of 1 node failure** (either n1 or n2 fails) and **a maximum of 5 node failures** (the 5 lowest-weighted ones).
+
+Please refer to the paper for a more detailed description, including how weights are assigned, how weight schemes are calculated, how weights are dynamically adjusted for optimal performance, and our rigorous proofs of safety and liveness.
 
 ## Micobenchmark
 
