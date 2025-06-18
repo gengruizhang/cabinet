@@ -25,6 +25,29 @@ Below is a visualization of three configurations in a 7-node setup:
 
 Please refer to the paper for a more detailed description, including how weights are assigned, how weight schemes are calculated, how weights are dynamically adjusted for optimal performance, and our rigorous proofs of safety and liveness.
 
+
+## Run Cabinet
+
+### Compile
+1. Make sure dependencies are installed. GoLang should have been properly installed with `GOPATH` and `GOROOT`. The GoLang version should be at least `go1.17.6`. In addition, three external packages were used (check out `go.mod`).
+
+2. Download the code and go into the cabinet folder.
+3. Build this project by `go build ../cabinet`, run the generated bin file.
+4. Run `./cabinet -h` to check out the parameters.
+
+### Configuration
+Configuration files are named as `.conf` in the `config` folder. The columns are `serverID`, `IP`, and `port numbers`.
+
+### Run a leader
+
+### Run a follower
+
+## Deployment
+
+* Each server retrieves its IP and port using its serverID from `parameters.go`.
+* To test Cabinet locally, set localhost as the IP and use different port numbers.
+
+
 ## Micobenchmark
 
 Cabinet also proposes a benchmark framework tailored for distributed consensus applications, with a special focus on leader-based consensus algorithms (e.g., the Paxos/Raft family). This framework introduces a set of versatile and adaptable interfaces that seamlessly integrate existing benchmarks. In this repository, YCSB and TPC-C are integrated into the benchmark framework.
@@ -52,17 +75,3 @@ Cabinet also proposes a benchmark framework tailored for distributed consensus a
 | ORDER_STATUS      | 0.04      |
 | DELIVERY          | 0.04      |
 | STOCK_LEVEL       | 0.04      |
-
-
-## Run Cabinet
-1. Make sure dependencies are installed. GoLang should have been properly installed with `GOPATH` and `GOROOT`. The GoLang version should be at least `go1.17.6`. In addition, three external packages were used (check out `go.mod`).
-
-2. Download the code and go into the cabinet folder.
-3. Build this project by `go build ../cabinet`, run the generated bin file.
-4. Run `./cabinet -h` to check out the parameters.
-
-## Deployment
-
-* The `.conf` file specifies serverID, IP, and port numbers.
-* Each server retrieves its IP and port using its serverID from `parameters.go`.
-* To test Cabinet locally, set localhost as the IP and use different port numbers.
