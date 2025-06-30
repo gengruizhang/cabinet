@@ -5,7 +5,7 @@ import (
 )
 
 func TestInitThreeServers(t *testing.T) {
-	n, f, b := 3, 2, 1
+	n, f, b := 7, 2, 1
 	var p PriorityManager
 	p.Init(n, f, b, 0.001, true)
 

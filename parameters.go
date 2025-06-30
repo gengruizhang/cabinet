@@ -37,8 +37,6 @@ var msgsize int
 var ratioTryStep float64
 var enablePriority bool
 
-var dynamicT bool
-
 // Mongo DB input parameters
 var mongoLoadType string
 var mongoClientNum int
@@ -63,8 +61,6 @@ func loadCommandLineInputs() {
 
 	// Production mode stores log on disk at ./logs/
 	flag.BoolVar(&production, "pd", false, "production mode?")
-	flag.BoolVar(&dynamicT, "dt", true, "changing Ts?")
-
 	flag.StringVar(&logLevel, "log", "debug", "trace, debug, info, warn, error, fatal, panic")
 	flag.IntVar(&mode, "mode", 0, "0 -> localhost; 1 -> distributed")
 	flag.IntVar(&evalType, "et", 0, "0 -> plain msg; 1 -> tpcc; 2 -> mongodb")

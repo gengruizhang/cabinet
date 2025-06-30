@@ -1,7 +1,6 @@
 package main
 
 import (
-	"cabinet/config"
 	"cabinet/eval"
 	"cabinet/mongodb"
 	"cabinet/tpcc"
@@ -41,12 +40,6 @@ func startSyncCabInstance() {
 	crashList := prepCrashList()
 	log.Infof("crash list was successfully prepared.")
 
-	var possibleTs chan int
-	// get possible thresholds, which is stored in a channel
-	if dynamicT {
-		possibleTs = config.ParseThresholds("./config/possibleTs.conf")
-	}
-
 	for {
 
 		serviceMethod := "CabService.ConsensusService"
@@ -68,17 +61,6 @@ func startSyncCabInstance() {
 		fpriorities := pManager.GetFollowerPriorities(leaderPClock)
 		log.Infof("pClock: %v | priorities: %+v", leaderPClock, fpriorities)
 		log.Infof("pClock: %v | quorum size (t+1) is %v | majority: %v", leaderPClock, pManager.GetQuorumSize(), pManager.GetMajority())
-
-		log.Debugf("Testing priorities change under new thresholds")
-
-		// implementing dynamically changing thresholds
-		if dynamicT {
-			q := <-possibleTs
-			fpriorities = pManager.SetNewPrioritiesUnderNewT(numOfServers, q+1, 1, ratioTryStep, leaderPClock)
-
-			log.Infof("pClock: %v | NEW priorities: %+v", leaderPClock, fpriorities)
-			log.Infof("pClock: %v | NEW quorum size (t+1) is %v | majority: %v", leaderPClock, pManager.GetQuorumSize(), pManager.GetMajority())
-		}
 
 		// 2. broadcast rpcs
 		switch evalType {
@@ -119,33 +101,44 @@ func startSyncCabInstance() {
 		prioQueue := make(chan serverID, numOfServers)
 		var followersResults []ReplyInfo
 
-		for rinfo := range receiver {
+		timeout := time.After(5 * time.Second)
 
-			prioQueue <- rinfo.SID
-			log.Infof("recv pClock: %v | serverID: %v", leaderPClock, rinfo.SID)
+		reached := false
 
-			fpriorities := pManager.GetFollowerPriorities(leaderPClock)
+		for !reached {
+			select {
+			case rinfo := <-receiver:
+				prioQueue <- rinfo.SID
+				log.Infof("recv pClock: %v | serverID: %v", leaderPClock, rinfo.SID)
 
-			prioSum += fpriorities[rinfo.SID]
+				fpriorities := pManager.GetFollowerPriorities(leaderPClock)
 
-			followersResults = append(followersResults, rinfo)
+				prioSum += fpriorities[rinfo.SID]
 
-			if prioSum > mypriority.Majority {
-				if err := perfM.RecordFinisher(leaderPClock); err != nil {
-					log.Errorf("PerfMeter failed | err: %v", err)
-					return
+				followersResults = append(followersResults, rinfo)
+
+				if prioSum > mypriority.Majority {
+					if err := perfM.RecordFinisher(leaderPClock); err != nil {
+						log.Errorf("PerfMeter failed | err: %v", err)
+						return
+					}
+
+					//If we run TPCC, keep the execution metrics
+					if len(rinfo.Recv.TpccMetrics) != 0 {
+						RecordTpccMetrics(&perfM, rinfo, leaderPClock, followersResults)
+					}
+
+					mystate.AddCommitIndex(batchsize)
+
+					log.Infof("consensus reached | insID: %v | total time elapsed: %v | cmtIndex: %v",
+						leaderPClock, time.Now().Sub(startTime).Milliseconds(), mystate.GetCommitIndex())
+
+					reached = true
 				}
 
-				//If we run TPCC, keep the execution metrics
-				if len(rinfo.Recv.TpccMetrics) != 0 {
-					RecordTpccMetrics(&perfM, rinfo, leaderPClock, followersResults)
-				}
-
-				mystate.AddCommitIndex(batchsize)
-
-				log.Infof("consensus reached | insID: %v | total time elapsed: %v | cmtIndex: %v",
-					leaderPClock, time.Now().Sub(startTime).Milliseconds(), mystate.GetCommitIndex())
-				break
+			case <-timeout:
+				log.Errorf("timeout waiting for responses at pClock %v; check connections with followers!", leaderPClock)
+				return
 			}
 		}
 
@@ -155,6 +148,7 @@ func startSyncCabInstance() {
 			log.Errorf("UpdateFollowerPriorities failed | err: %v", err)
 			return
 		}
+
 		log.Infof("prio updated for pClock %v", leaderPClock)
 	}
 }
