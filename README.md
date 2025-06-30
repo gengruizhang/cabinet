@@ -46,18 +46,19 @@ Please check `loadCommandLineInputs()` in `parameters.go` for other parameters. 
 ### Configuration
 Configuration files are named as `.conf` in the `config` folder. The columns are `serverID`, `IP`, and `port numbers`.
 
-### Starting the Leader
-
-The leader has an ID of `0`, which means it always occupies the first position in the configuration.
-
-- To start the leader, run: `./cabinet -id=0`. Note that there is only one leader in both Raft and Cabinet.
-- The leader’s IP corresponds to the entry with `ID=0` (first column) in the configuration file.
-
 ### Run a Follower
 
 - To start a follower, run: `./cabinet -id=1`. For additional followers, simply use incrementing ID numbers (e.g., `./cabinet -id=2`, `./cabinet -id=3`, etc.).
 - To demonstrate Cabinet's weighted consensus, you need at least 5 nodes in the system, which includes one leader and four followers.
 
+### Starting the Leader
+
+* Start sufficient followers first then start the leader.
+
+The leader has an ID of `0`, which means it always occupies the first position in the configuration.
+
+- To start the leader, run: `./cabinet -id=0`. Note that there is only one leader in both Raft and Cabinet.
+- The leader’s IP corresponds to the entry with `ID=0` (first column) in the configuration file.
 
 ## Deployment
 
