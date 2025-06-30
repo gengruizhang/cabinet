@@ -35,12 +35,29 @@ Please refer to the paper for a more detailed description, including how weights
 3. Build this project by `go build ../cabinet`, run the generated bin file.
 4. Run `./cabinet -h` to check out the parameters.
 
+### Key parameters
+`n` is the number of nodes in the systems.  
+`-t` is the failure threshold; the quorum size is `t+1`, which is the number of cabinet members.  
+`-id` is the node ID, which is used to find the node's configuration file in `./config`  
+`-pd`: when set to `true`, logs are saved to `./logs`; if `false`, log output is printed to the console.  
+
+Please check `loadCommandLineInputs()` in `parameters.go` for other parameters. If you're not planning to use our TPCC/YCSB workloads, you can ignore the parameters related to these workloads and DBs. 
+
 ### Configuration
 Configuration files are named as `.conf` in the `config` folder. The columns are `serverID`, `IP`, and `port numbers`.
 
-### Run a leader
+### Starting the Leader
 
-### Run a follower
+The leader has an ID of `0`, which means it always occupies the first position in the configuration.
+
+- To start the leader, run: `./cabinet -id=0`. Note that there is only one leader in both Raft and Cabinet.
+- The leader’s IP corresponds to the entry with `ID=0` (first column) in the configuration file.
+
+### Run a Follower
+
+- To start a follower, run: `./cabinet -id=1`. For additional followers, simply use incrementing ID numbers (e.g., `./cabinet -id=2`, `./cabinet -id=3`, etc.).
+- To demonstrate Cabinet's weighted consensus, you need at least 5 nodes in the system, which includes one leader and four followers.
+
 
 ## Deployment
 
