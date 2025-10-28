@@ -6,6 +6,18 @@ Cabinet uses weighted consensus to achieve fast agreement. What sets it apart fr
 2. **Customizable failure thresholds**, allowing the system to potentially tolerate more than half of the nodes failing.
 3. **Dynamically adjusted weights** based on node responsiveness, helping the system maintain optimal performance.
 
+## Cite our work
+```bibtex
+@article{cabinet2025zhang,
+  author       = {Gengrui Zhang and Shiquan Zhang and Michail Bachras and Yuqiu Zhang and Hans{-}Arno Jacobsen},
+  title        = {Cabinet: Dynamically Weighted Consensus Made Fast},
+  journal      = {Proc. {VLDB} Endow.},
+  volume       = {18},
+  number       = {5},
+  pages        = {1439--1452},
+  year         = {2025},
+}
+```
 
 ## How Cabinet works?
 Traditional consensus algorithms (such as Paxos and Raft) use majority quorums, which implicitly makes every node's decision weigh 1.
