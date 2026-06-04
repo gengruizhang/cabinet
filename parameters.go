@@ -51,9 +51,9 @@ var suffix string
 func loadCommandLineInputs() {
 	flag.IntVar(&numOfServers, "n", 10, "# of servers")
 
-	flag.IntVar(&threshold, "t", 1, "# of quorum tolerated")
-	// f = t + 1;
-	quorum = threshold + 1
+	flag.IntVar(&threshold, "t", 1, "# of failure tolerated")
+
+	flag.IntVar(&quorum, "q", 2, "quorum size (t+1)")
 
 	flag.IntVar(&batchsize, "b", 1, "batch size")
 	flag.IntVar(&myServerID, "id", 0, "this server ID")
